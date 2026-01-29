@@ -6,13 +6,18 @@ authors = [
     {name = "Guilherme Silveira Coutinho",email = "guisilveira.cout@gmail.com"}
 ]
 readme = "README.md"
+package-mode= false
 requires-python = ">=3.14"
 dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "stellar_gateway", from = "src"}]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+testpaths = ["tests"]
+addopts = "-v --cov=src"

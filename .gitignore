@@ -1,0 +1,40 @@
+# --- Python Bytecode & Cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Variáveis de Ambiente & Segredos  ---
+.env
+.env.local
+.env.test
+.env.production
+.secrets
+
+# --- Poetry & Virtual Environments ---
+.venv/
+venv/
+ENV/
+
+# --- Testes & Qualidade de Código ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.tox/
+
+# --- IDEs & Editores (Configurações locais de usuário) ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Sistema Operacional ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Docker (Arquivos locais/temporários) ---
+docker-compose.override.yml
+
+# --- Google Cloud ---
+.gcloudignore
