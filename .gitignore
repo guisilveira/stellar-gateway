@@ -21,6 +21,7 @@ ENV/
 htmlcov/
 .mypy_cache/
 .tox/
+.ruff_cache/
 
 # --- IDEs & Editores (Configurações locais de usuário) ---
 .vscode/
