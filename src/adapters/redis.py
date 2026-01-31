@@ -125,6 +125,14 @@ class RedisClient:
         """
         return await self._redis.exists(key) > 0
 
+    async def close(self) -> None:
+        """
+        Closes the Redis connection.
+
+        Should be called during application shutdown.
+        """
+        await self._redis.aclose()
+
 
 def get_redis_client() -> RedisClient:
     """
