@@ -6,8 +6,16 @@ authors = [
     {name = "Guilherme Silveira Coutinho",email = "guisilveira.cout@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<4.0"
 dependencies = [
+    "fastapi (>=0.128.0,<0.129.0)",
+    "uvicorn (>=0.40.0,<0.41.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "pydantic (>=2.12.5,<3.0.0)",
+    "pydantic-settings (>=2.12.0,<3.0.0)",
+    "tenacity (>=9.1.2,<10.0.0)",
+    "firebase-admin (>=7.1.0,<8.0.0)",
+    "redis (>=7.1.0,<8.0.0)"
 ]
 
 [build-system]
@@ -20,7 +28,14 @@ dev = [
     "pre-commit (>=4.5.1,<5.0.0)",
     "mypy (>=1.19.1,<2.0.0)",
     "pytest (>=9.0.2,<10.0.0)",
-    "pytest-cov (>=7.0.0,<8.0.0)"
+    "pytest-cov (>=7.0.0,<8.0.0)",
+    "pytest-asyncio (>=1.3.0,<2.0.0)",
+    "respx (>=0.22.0,<0.23.0)",
+    "black (>=26.1.0,<27.0.0)",
+    "flake8 (>=7.3.0,<8.0.0)",
+    "isort (>=7.0.0,<8.0.0)",
+    "taskipy (>=1.14.1,<2.0.0)",
+    "fakeredis (>=2.33.0,<3.0.0)"
 ]
 
 [tool.poetry]
