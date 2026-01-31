@@ -21,12 +21,11 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-import httpx
 import firebase_admin
+import httpx
 from firebase_admin import auth, credentials
 
 from core.config import settings
-
 
 # Firebase Identity Toolkit endpoint for token exchange
 IDENTITY_TOOLKIT_URL = (
@@ -56,7 +55,11 @@ def create_custom_token(uid: str) -> str:
         A custom token string that can be exchanged for an ID token.
     """
     custom_token = auth.create_custom_token(uid)
-    return custom_token.decode("utf-8") if isinstance(custom_token, bytes) else custom_token
+    return (
+        custom_token.decode("utf-8")
+        if isinstance(custom_token, bytes)
+        else custom_token
+    )
 
 
 def exchange_custom_token_for_id_token(custom_token: str) -> dict:
@@ -112,7 +115,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"[1/3] Initializing Firebase Admin SDK...")
+    print("[1/3] Initializing Firebase Admin SDK...")
     try:
         initialize_firebase()
         print("      Firebase initialized successfully.")

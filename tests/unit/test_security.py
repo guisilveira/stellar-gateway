@@ -8,10 +8,10 @@ with mocked Firebase authentication.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.security import MOCK_TOKEN, CurrentUser, get_current_user, verify_token
+from core.security import MOCK_TOKEN, CurrentUser, verify_token
 
 
 @pytest.fixture
@@ -71,8 +71,7 @@ class TestGetCurrentUserDependency:
         mock_settings.ENVIRONMENT = "dev"
 
         response = client.get(
-            "/protected",
-            headers={"Authorization": f"Bearer {MOCK_TOKEN}"}
+            "/protected", headers={"Authorization": f"Bearer {MOCK_TOKEN}"}
         )
 
         assert response.status_code == 200
@@ -113,7 +112,7 @@ class TestGetCurrentUserDependency:
         mock_init_firebase: MagicMock,
         mock_auth: MagicMock,
         mock_settings: MagicMock,
-        client: TestClient
+        client: TestClient,
     ) -> None:
         """Invalid tokens should return 401 with appropriate message."""
         from firebase_admin import auth as real_auth
@@ -125,8 +124,7 @@ class TestGetCurrentUserDependency:
         mock_auth.RevokedIdTokenError = real_auth.RevokedIdTokenError
 
         response = client.get(
-            "/protected",
-            headers={"Authorization": "Bearer invalid-token"}
+            "/protected", headers={"Authorization": "Bearer invalid-token"}
         )
 
         assert response.status_code == 401
