@@ -5,10 +5,9 @@ This file defines the expected behavior for all 6 SWAPI entities.
 Testing generic logic and specific field validations.
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
 
 import pytest
-from pydantic import ValidationError
 
 from domain.models import (
     Film,

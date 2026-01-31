@@ -44,5 +44,5 @@ class GetPersonUseCase:
             ValidationError: If the SWAPI data doesn't match Person schema.
             ResourceNotFoundError: If the person does not exist.
         """
-        data = await self._swapi_client.get_person_data(person_id)
+        data = await self._swapi_client.get_resource("people", person_id)
         return Person(**data)

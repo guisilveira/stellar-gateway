@@ -1,5 +1,5 @@
 """
-Unit tests for GetPersonUseCase (TDD - Red Phase).
+Unit tests for GetPersonUseCase.
 
 This test injects a Fake adapter to verify the Use Case logic
 without making real HTTP requests.
@@ -19,9 +19,18 @@ class FakeSwapiAdapter:
     def __init__(self, data: dict) -> None:
         self._data = data
 
-    async def get_person_data(self, person_id: int) -> dict:
+    async def get_resource(self, resource_type: str, resource_id: int) -> dict:
         """Returns the pre-configured data."""
         return self._data
+
+    async def list_resources(
+        self,
+        resource_type: str,
+        page: int | None = None,
+        search: str | None = None,
+    ) -> dict:
+        """Not used in this test."""
+        return {}
 
 
 class TestGetPersonUseCase:
@@ -84,12 +93,24 @@ class TestGetPersonUseCase:
         """
         # Arrange
         captured_id: int | None = None
+        captured_resource_type: str | None = None
 
         class SpySwapiAdapter:
-            async def get_person_data(self, person_id: int) -> dict:
-                nonlocal captured_id
-                captured_id = person_id
+            async def get_resource(
+                self, resource_type: str, resource_id: int
+            ) -> dict:
+                nonlocal captured_id, captured_resource_type
+                captured_id = resource_id
+                captured_resource_type = resource_type
                 return valid_person_data
+
+            async def list_resources(
+                self,
+                resource_type: str,
+                page: int | None = None,
+                search: str | None = None,
+            ) -> dict:
+                return {}
 
         spy_adapter = SpySwapiAdapter()
         use_case = GetPersonUseCase(swapi_client=spy_adapter)
@@ -99,3 +120,4 @@ class TestGetPersonUseCase:
 
         # Assert
         assert captured_id == 42
+        assert captured_resource_type == "people"
