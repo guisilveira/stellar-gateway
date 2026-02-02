@@ -242,7 +242,9 @@ class GetResourceUseCase:
         cached_data = await self._cache.get(cache_key)
 
         if cached_data is not None:
-            # Cache hit - return cached data
+            # Cache hit - enrich if requested and return
+            if enrich:
+                cached_data = await self._enrich_resource(cached_data)
             return cached_data
 
         # Step 2: Cache miss - fetch from SWAPI
