@@ -39,3 +39,8 @@ docker-compose.override.yml
 
 # --- Google Cloud ---
 .gcloudignore
+serviceAccountKey.json
+
+# --- API Gateway (Generated from template) ---
+# Use: envsubst < openapi.template.yaml > openapi.yaml
+openapi.yaml
