@@ -51,11 +51,34 @@ All protected endpoints require a valid Firebase ID Token in the `Authorization`
 curl -H "Authorization: Bearer <FIREBASE_TOKEN>" https://stellar-gateway-23t3upfn.uc.gateway.dev/people/1
 ```
 
-### Generating a Test Token
+### Authentication CLI
+
+The project includes a CLI tool for Firebase authentication:
+
+```bash
+# Create a new user account
+poetry run python scripts/auth.py signup -e user@example.com -p password123
+
+# Login and get an ID Token
+poetry run python scripts/auth.py login -e user@example.com -p password123
+
+# Login in quiet mode (only outputs token - great for scripting)
+TOKEN=$(poetry run python scripts/auth.py login -e user@example.com -p password123 -q)
+curl -H "Authorization: Bearer $TOKEN" https://stellar-gateway-23t3upfn.uc.gateway.dev/people/1
+
+# Refresh an expired token
+poetry run python scripts/auth.py refresh -t <refresh_token>
+```
+
+### Generating a Test Token (Admin SDK)
+
+For testing without a real user, you can generate a token using the Firebase Admin SDK:
 
 ```bash
 poetry run python scripts/get_token.py --uid test-user-001
 ```
+
+> **Note:** This requires `serviceAccountKey.json` and is intended for development only.
 
 ## 🛠️ Local Development
 

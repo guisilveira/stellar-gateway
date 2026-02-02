@@ -80,16 +80,16 @@ Este projeto segue a metodologia **TDD (Test Driven Development)** e mapeia dire
 
 ## 🚀 Fase 8: Funcionalidades Extras (Em Progresso)
 
-### 8.1 Script CLI de Autenticação
+### 8.1 Script CLI de Autenticação ✅
 > Permitir cadastro e login de usuários reais via linha de comando.
 
-- [ ] **Criar `scripts/auth.py`:**
-    - [ ] Comando `signup` - Cadastrar novo usuário (email/senha)
-    - [ ] Comando `login` - Autenticar e retornar ID Token
-    - [ ] Comando `refresh` - Renovar token expirado
-    - [ ] Output formatado para uso direto com `curl`
-- [ ] **Documentar no README.md**
-- [ ] **Testes do script**
+- [x] **Criar `scripts/auth.py`:**
+    - [x] Comando `signup` - Cadastrar novo usuário (email/senha)
+    - [x] Comando `login` - Autenticar e retornar ID Token
+    - [x] Comando `refresh` - Renovar token expirado
+    - [x] Output formatado para uso direto com `curl`
+- [x] **Documentar no README.md**
+- [x] **Testes do script** (18 testes)
 
 **Exemplo de uso:**
 ```bash
@@ -182,9 +182,9 @@ RATE_LIMIT_WINDOW = 60     # segundos (1 minuto)
 
 | Métrica | Valor |
 |---------|-------|
-| **Testes** | 93 |
+| **Testes** | 111 |
 | **Cobertura** | 94% |
 | **Endpoints** | 13 rotas |
 | **Recursos SWAPI** | 6 |
-| **Linhas de código** | ~2000 |
-| **Documentação** | 5 arquivos MD |
+| **Linhas de código** | ~2500 |
+| **Documentação** | 6 arquivos MD |
