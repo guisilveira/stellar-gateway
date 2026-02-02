@@ -59,13 +59,8 @@ def client(
 class TestHealthEndpoint:
     """Tests for the /health endpoint."""
 
-    def test_health_check_returns_healthy(
-        self,
-        mock_get_resource_use_case: MagicMock,
-        mock_list_resources_use_case: MagicMock,
-    ) -> None:
+    def test_health_check_returns_healthy(self) -> None:
         """Should return healthy status."""
-        # Need fresh client without dependency overrides for health check
         with TestClient(app) as client:
             response = client.get("/health")
 

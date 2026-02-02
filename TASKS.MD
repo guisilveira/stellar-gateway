@@ -22,7 +22,7 @@ Este projeto segue a metodologia **TDD (Test Driven Development)** e mapeia dire
 - [x] **Ordenação:** Fase 4 (Sorting).
 - [x] **Dados correlacionados (enrichment):** Fase 4.
 - [x] **Desenho de arquitetura:** Fase 1.
-- [ ] **Funcionalidades extras complexas:** Fase 8 (Rate Limiting, Logs).
+- [x] **Funcionalidades extras complexas:** Fase 8 (Auth CLI ✅, Rate Limiting ⏸️ adiado, Logs pendente).
 
 ---
 
@@ -104,23 +104,27 @@ TOKEN=$(poetry run python scripts/auth.py login -e user@test.com -p 123456 -q)
 curl -H "Authorization: Bearer $TOKEN" https://stellar-gateway-xxx/people/1
 ```
 
-### 8.2 Rate Limiting por Usuário
+### 8.2 Rate Limiting por Usuário ⏸️ (Adiado)
 > Limitar requisições por usuário para evitar abuso e demonstrar resiliência.
 
-- [ ] **Implementar middleware de Rate Limiting:**
-    - [ ] Usar Redis para armazenar contadores por `user_id`
-    - [ ] Configuração: `RATE_LIMIT_REQUESTS` e `RATE_LIMIT_WINDOW` (segundos)
-    - [ ] Algoritmo: Sliding Window Counter
-    - [ ] Headers de resposta: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
-- [ ] **Retornar 429 Too Many Requests quando exceder limite**
-- [ ] **Testes unitários do middleware**
-- [ ] **Documentar comportamento**
+**Status:** Investigado, mas não implementado devido a limitações do GCP API Gateway.
 
-**Configuração padrão:**
-```python
-RATE_LIMIT_REQUESTS = 100  # requests
-RATE_LIMIT_WINDOW = 60     # segundos (1 minuto)
-```
+**Análise:**
+O GCP API Gateway suporta rate limiting nativo, mas com restrições:
+- Rate limiting **por usuário** (`1/min/{user}`) requer **API Keys** obrigatórias
+- Com apenas Firebase JWT (OAuth), só suporta rate limiting **por projeto** (`1/min/{project}`)
+- Adicionar API Keys mudaria a arquitetura de autenticação significativamente
+
+**Decisão:**
+Para este projeto, que já usa Firebase Authentication, adicionar API Keys criaria complexidade 
+desnecessária. A proteção contra abuso fica a cargo de:
+1. **Autenticação obrigatória** - Apenas usuários autenticados podem acessar
+2. **Cloud Run auto-scaling** - Escala automaticamente conforme demanda
+3. **SWAPI rate limiting** - A própria SWAPI limita requisições upstream
+
+**Alternativa futura:**
+Se rate limiting for crítico, implementar via código custom com Redis (Sliding Window Log)
+ou migrar para outro API Gateway que suporte rate limiting por JWT claims.
 
 ### 8.3 Logs Estruturados (JSON)
 > Logs em formato JSON para melhor observabilidade em produção.
@@ -169,8 +173,8 @@ RATE_LIMIT_WINDOW = 60     # segundos (1 minuto)
 
 | Data | Tarefa | Prioridade |
 |------|--------|------------|
-| 02/02 | Script CLI Auth (`scripts/auth.py`) | 🔴 Alta |
-| 02/02 | Rate Limiting por usuário | 🔴 Alta |
+| 02/02 | ~~Script CLI Auth (`scripts/auth.py`)~~ | ✅ Concluído |
+| 02/02 | ~~Rate Limiting por usuário~~ | ⏸️ Adiado (limitação API Gateway) |
 | 03/02 | Logs Estruturados (JSON) | 🟡 Média |
 | 03/02 | Redeploy no Cloud Run | 🔴 Alta |
 | 04/02 | Testes finais e documentação | 🟡 Média |
