@@ -5,13 +5,20 @@ Tests the verify_token function and get_current_user dependency
 with mocked Firebase authentication.
 """
 
+import base64
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from core.security import MOCK_TOKEN, CurrentUser, verify_token
+from core.security import (
+    API_GATEWAY_USER_INFO_HEADER,
+    MOCK_TOKEN,
+    CurrentUser,
+    verify_token,
+)
 
 
 @pytest.fixture
@@ -130,3 +137,80 @@ class TestGetCurrentUserDependency:
         assert response.status_code == 401
         data = response.json()
         assert "Invalid ID token" in data["detail"]
+
+
+class TestApiGatewayUserInfo:
+    """Test suite for API Gateway X-Apigateway-Api-Userinfo header handling."""
+
+    @patch("core.security.settings")
+    def test_extracts_user_from_gateway_header(
+        self, mock_settings: MagicMock, client: TestClient
+    ) -> None:
+        """API Gateway user info header should be trusted and used."""
+        mock_settings.ENVIRONMENT = "prod"
+
+        # Create a base64url-encoded user info payload
+        user_info = {
+            "sub": "gateway-user-123",
+            "email": "gateway@example.com",
+            "name": "Gateway User",
+            "email_verified": True,
+        }
+        encoded_user_info = base64.urlsafe_b64encode(
+            json.dumps(user_info).encode()
+        ).decode().rstrip("=")
+
+        response = client.get(
+            "/protected",
+            headers={API_GATEWAY_USER_INFO_HEADER: encoded_user_info}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user"]["uid"] == "gateway-user-123"
+        assert data["user"]["email"] == "gateway@example.com"
+        assert data["user"]["name"] == "Gateway User"
+
+    @patch("core.security.settings")
+    def test_gateway_header_takes_priority_over_auth(
+        self, mock_settings: MagicMock, client: TestClient
+    ) -> None:
+        """API Gateway header should be preferred over Authorization header."""
+        mock_settings.ENVIRONMENT = "prod"
+
+        user_info = {"sub": "priority-user", "email": "priority@example.com"}
+        encoded_user_info = base64.urlsafe_b64encode(
+            json.dumps(user_info).encode()
+        ).decode().rstrip("=")
+
+        response = client.get(
+            "/protected",
+            headers={
+                API_GATEWAY_USER_INFO_HEADER: encoded_user_info,
+                "Authorization": "Bearer some-other-token"
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["user"]["uid"] == "priority-user"
+
+    @patch("core.security.settings")
+    def test_falls_back_to_auth_when_gateway_header_invalid(
+        self, mock_settings: MagicMock, client: TestClient
+    ) -> None:
+        """Invalid gateway header should fall back to Authorization header."""
+        mock_settings.ENVIRONMENT = "dev"
+
+        response = client.get(
+            "/protected",
+            headers={
+                API_GATEWAY_USER_INFO_HEADER: "not-valid-base64!!!",
+                "Authorization": f"Bearer {MOCK_TOKEN}"
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Should fall back to mock token user
+        assert data["user"]["uid"] == "mock-user-001"
