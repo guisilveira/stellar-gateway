@@ -5,6 +5,7 @@ This module implements RFC 7807 Problem Details for HTTP APIs.
 Converts domain exceptions to standardized error responses.
 """
 
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request, status
@@ -15,6 +16,8 @@ from domain.exceptions import (
     ResourceNotFoundException,
     StellarGatewayException,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # Valid SWAPI resource types
@@ -86,6 +89,17 @@ async def resource_not_found_handler(
     Returns:
         A JSONResponse with Problem Details.
     """
+    logger.warning(
+        f"Resource not found: {exc.resource_type}/{exc.resource_id}",
+        extra={
+            "extra_fields": {
+                "error_type": "ResourceNotFound",
+                "resource_type": exc.resource_type,
+                "resource_id": exc.resource_id,
+                "path": str(request.url),
+            }
+        },
+    )
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content=ProblemDetail.create(
@@ -116,6 +130,16 @@ async def external_service_handler(
     Returns:
         A JSONResponse with Problem Details.
     """
+    logger.error(
+        f"External service error: {exc.service_name} - {exc.message}",
+        extra={
+            "extra_fields": {
+                "error_type": "ExternalServiceError",
+                "service": exc.service_name,
+                "path": str(request.url),
+            }
+        },
+    )
     return JSONResponse(
         status_code=status.HTTP_502_BAD_GATEWAY,
         content=ProblemDetail.create(
@@ -145,6 +169,17 @@ async def generic_exception_handler(
     Returns:
         A JSONResponse with Problem Details.
     """
+    logger.error(
+        f"Internal server error: {exc.message}",
+        extra={
+            "extra_fields": {
+                "error_type": "InternalServerError",
+                "exception_class": exc.__class__.__name__,
+                "path": str(request.url),
+            }
+        },
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=ProblemDetail.create(

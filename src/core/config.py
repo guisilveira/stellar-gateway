@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # Environment: "dev", "test", or "prod"
     ENVIRONMENT: str = "dev"
 
+    # GCP Project ID (for log trace correlation)
+    GCP_PROJECT: str = ""
+
     # Config to read from .env file automatically
     model_config = SettingsConfigDict(
         env_file=".env",

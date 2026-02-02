@@ -22,7 +22,7 @@ Este projeto segue a metodologia **TDD (Test Driven Development)** e mapeia dire
 - [x] **Ordenação:** Fase 4 (Sorting).
 - [x] **Dados correlacionados (enrichment):** Fase 4.
 - [x] **Desenho de arquitetura:** Fase 1.
-- [x] **Funcionalidades extras complexas:** Fase 8 (Auth CLI ✅, Rate Limiting ⏸️ adiado, Logs pendente).
+- [x] **Funcionalidades extras complexas:** Fase 8 (Auth CLI ✅, Rate Limiting ⏸️ adiado, Logs ✅).
 
 ---
 
@@ -78,7 +78,7 @@ Este projeto segue a metodologia **TDD (Test Driven Development)** e mapeia dire
 
 ---
 
-## 🚀 Fase 8: Funcionalidades Extras (Em Progresso)
+## 🚀 Fase 8: Funcionalidades Extras ✅
 
 ### 8.1 Script CLI de Autenticação ✅
 > Permitir cadastro e login de usuários reais via linha de comando.
@@ -126,33 +126,61 @@ desnecessária. A proteção contra abuso fica a cargo de:
 Se rate limiting for crítico, implementar via código custom com Redis (Sliding Window Log)
 ou migrar para outro API Gateway que suporte rate limiting por JWT claims.
 
-### 8.3 Logs Estruturados (JSON)
+### 8.3 Logs Estruturados (JSON) ✅
 > Logs em formato JSON para melhor observabilidade em produção.
 
-- [ ] **Configurar logging estruturado:**
-    - [ ] Formato JSON em produção
-    - [ ] Formato texto colorido em desenvolvimento
-    - [ ] Campos: `timestamp`, `level`, `message`, `request_id`, `user_id`, `path`, `method`, `duration_ms`
-- [ ] **Middleware de Request Logging:**
-    - [ ] Log de entrada (request)
-    - [ ] Log de saída (response com duration)
-    - [ ] Correlation ID (`X-Request-ID`)
-- [ ] **Integração com Cloud Logging (GCP)**
-- [ ] **Testes de configuração de logging**
+- [x] **Configurar logging estruturado:**
+    - [x] Formato JSON em produção (`CloudRunJSONFormatter`)
+    - [x] Formato texto colorido em desenvolvimento (`DevelopmentFormatter`)
+    - [x] Campos: `timestamp`, `severity`, `message`, `request_id`, `user_id`, `httpRequest` (method, path, status, latency)
+- [x] **Middleware de Request Logging:**
+    - [x] Log de cada request com método, path, status e duração
+    - [x] Correlation ID (`X-Request-ID`) - gerado automaticamente ou extraído do header
+    - [x] Trace ID para correlação com Cloud Logging (`X-Cloud-Trace-Context`)
+    - [x] Níveis de log apropriados (INFO para 2xx, WARNING para 4xx, ERROR para 5xx)
+- [x] **Integração com Cloud Logging (GCP)**
+    - [x] Campos especiais: `logging.googleapis.com/trace`, `logging.googleapis.com/sourceLocation`
+    - [x] Captura automática via stdout (nativo do Cloud Run)
+- [x] **Logging de erros nos exception handlers**
+- [x] **Logs de lifecycle da aplicação (startup/shutdown)**
+- [x] **Testes de configuração de logging (33 testes)**
 
-**Exemplo de log:**
+**Arquivos criados/modificados:**
+- `src/core/logging.py` - Formatters JSON e Development, setup_logging()
+- `src/api/middleware.py` - RequestLoggingMiddleware
+- `src/main.py` - Integração do middleware e logs de lifecycle
+- `src/api/errors.py` - Logging nos exception handlers
+- `src/core/config.py` - Adicionado GCP_PROJECT
+- `tests/unit/test_logging.py` - 20 testes
+- `tests/unit/test_middleware.py` - 13 testes
+
+**Exemplo de log (produção):**
 ```json
 {
-  "timestamp": "2026-02-02T19:30:00.000Z",
-  "level": "INFO",
-  "message": "Request completed",
-  "request_id": "abc-123",
-  "user_id": "user-001",
-  "method": "GET",
-  "path": "/people/1",
-  "status_code": 200,
-  "duration_ms": 45
+  "severity": "INFO",
+  "message": "GET /people/1 - 200",
+  "timestamp": "2026-02-03T10:30:00.000000+00:00",
+  "logger": "api.middleware",
+  "logging.googleapis.com/trace": "projects/stellar-gateway-10135/traces/abc123",
+  "logging.googleapis.com/sourceLocation": {
+    "file": "middleware.py",
+    "line": "65",
+    "function": "dispatch"
+  },
+  "httpRequest": {
+    "requestMethod": "GET",
+    "requestUrl": "/people/1",
+    "status": 200,
+    "latency": "45.23ms"
+  },
+  "request_id": "abc12345",
+  "user_id": "user-001"
 }
+```
+
+**Exemplo de log (desenvolvimento):**
+```
+10:30:00 [INFO    ] GET /people/1 - 200 | method=GET path=/people/1 status=200 latency=45.23ms
 ```
 
 ---
@@ -175,7 +203,7 @@ ou migrar para outro API Gateway que suporte rate limiting por JWT claims.
 |------|--------|------------|
 | 02/02 | ~~Script CLI Auth (`scripts/auth.py`)~~ | ✅ Concluído |
 | 02/02 | ~~Rate Limiting por usuário~~ | ⏸️ Adiado (limitação API Gateway) |
-| 03/02 | Logs Estruturados (JSON) | 🟡 Média |
+| 03/02 | ~~Logs Estruturados (JSON)~~ | ✅ Concluído |
 | 03/02 | Redeploy no Cloud Run | 🔴 Alta |
 | 04/02 | Testes finais e documentação | 🟡 Média |
 | 05/02 | **Entrega** | 🔴 Alta |
@@ -186,9 +214,9 @@ ou migrar para outro API Gateway que suporte rate limiting por JWT claims.
 
 | Métrica | Valor |
 |---------|-------|
-| **Testes** | 111 |
-| **Cobertura** | 94% |
+| **Testes** | 144 |
+| **Cobertura** | 95% |
 | **Endpoints** | 13 rotas |
 | **Recursos SWAPI** | 6 |
-| **Linhas de código** | ~2500 |
+| **Linhas de código** | ~2800 |
 | **Documentação** | 6 arquivos MD |
