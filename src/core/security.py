@@ -3,8 +3,14 @@ Security utilities for authentication and authorization.
 
 This module provides Firebase authentication verification and
 FastAPI dependencies for protecting API endpoints.
+
+Supports both:
+- Direct access with Authorization Bearer token (Cloud Run)
+- API Gateway access with X-Apigateway-Api-Userinfo header
 """
 
+import base64
+import json
 from typing import Annotated
 
 import firebase_admin
@@ -17,6 +23,9 @@ from core.config import settings
 
 # Mock token accepted in dev/test environments
 MOCK_TOKEN = "mock-token"
+
+# Header used by Google API Gateway to pass validated user info
+API_GATEWAY_USER_INFO_HEADER = "X-Apigateway-Api-Userinfo"
 
 # HTTP Bearer scheme for extracting tokens
 security_scheme = HTTPBearer(auto_error=False)
@@ -70,6 +79,45 @@ def verify_token(token: str) -> dict:
     return dict(decoded_token)
 
 
+def _extract_user_from_gateway_header(request: Request) -> dict | None:
+    """
+    Extracts user info from API Gateway's X-Apigateway-Api-Userinfo header.
+
+    When API Gateway validates a JWT, it passes the validated claims
+    as a base64url-encoded JSON in this header.
+
+    Args:
+        request: The incoming FastAPI request.
+
+    Returns:
+        A dictionary containing the user's claims, or None if header not present.
+    """
+    user_info_header = request.headers.get(API_GATEWAY_USER_INFO_HEADER)
+
+    if not user_info_header:
+        return None
+
+    try:
+        # API Gateway uses base64url encoding (may have padding issues)
+        # Add padding if necessary
+        padding = 4 - len(user_info_header) % 4
+        if padding != 4:
+            user_info_header += "=" * padding
+
+        decoded_bytes = base64.urlsafe_b64decode(user_info_header)
+        user_info = json.loads(decoded_bytes.decode("utf-8"))
+
+        # Map Firebase JWT claims to our expected format
+        return {
+            "uid": user_info.get("sub") or user_info.get("user_id"),
+            "email": user_info.get("email"),
+            "name": user_info.get("name"),
+            "email_verified": user_info.get("email_verified", False),
+        }
+    except Exception:
+        return None
+
+
 async def get_current_user(
     request: Request,
     credentials: Annotated[
@@ -78,6 +126,10 @@ async def get_current_user(
 ) -> dict:
     """
     FastAPI dependency that extracts and verifies the Firebase ID Token.
+
+    Supports two authentication modes:
+    1. API Gateway: Reads validated user info from X-Apigateway-Api-Userinfo header
+    2. Direct: Validates Firebase ID Token from Authorization header
 
     In dev/test environments, the dependency is more lenient:
     - Accepts "mock-token" as a valid token
@@ -93,7 +145,12 @@ async def get_current_user(
     Raises:
         HTTPException: 401 if authentication fails.
     """
-    # In test environment, allow requests without auth header
+    # Priority 1: Check for API Gateway validated user info header
+    gateway_user = _extract_user_from_gateway_header(request)
+    if gateway_user:
+        return gateway_user
+
+    # Priority 2: In test environment, allow requests without auth header
     if settings.ENVIRONMENT == "test" and credentials is None:
         return {
             "uid": "test-user",
@@ -101,6 +158,7 @@ async def get_current_user(
             "name": "Test User",
         }
 
+    # Priority 3: Validate Authorization Bearer token
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
