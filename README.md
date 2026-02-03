@@ -138,7 +138,7 @@ gcloud run deploy stellar-gateway \
   --source=. \
   --region=us-central1 \
   --vpc-connector=stellar-redis-connector \
-  --set-env-vars="ENVIRONMENT=prod,REDIS_HOST=10.160.194.123,REDIS_PORT=6379" \
+  --set-env-vars="ENVIRONMENT=prod,REDIS_HOST=10.160.194.123,REDIS_PORT=6379,GCP_PROJECT=stellar-gateway-10135" \
   --allow-unauthenticated \
   --memory=512Mi \
   --timeout=60s
@@ -171,14 +171,21 @@ stellar-gateway/
 ├── src/
 │   ├── adapters/          # External service clients (Redis, SWAPI)
 │   ├── api/               # FastAPI routes, dependencies, error handlers
-│   ├── core/              # Configuration, security
+│   │   ├── routes.py      # API endpoints
+│   │   ├── errors.py      # Exception handlers (RFC 7807)
+│   │   ├── middleware.py  # Request logging middleware
+│   │   └── dependencies.py # Dependency injection
+│   ├── core/              # Configuration, security, logging
+│   │   ├── config.py      # Settings (Pydantic)
+│   │   ├── security.py    # Firebase auth
+│   │   └── logging.py     # Structured logging (JSON/Dev)
 │   ├── domain/            # Domain models and exceptions
 │   ├── interfaces/        # Abstract interfaces (ports)
 │   └── use_cases/         # Business logic
 ├── tests/
 │   ├── unit/              # Unit tests
 │   └── integration/       # Integration tests
-├── scripts/               # Utility scripts
+├── scripts/               # Utility scripts (auth.py, get_token.py)
 ├── main.py                # Cloud Run entry point
 ├── openapi.yaml           # API Gateway OpenAPI spec
 ├── Dockerfile             # Container definition
@@ -199,21 +206,29 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
 ## 📊 Test Coverage
 
 ```
-Name                          Stmts   Miss  Cover
--------------------------------------------------
-src/adapters/redis.py            32      0   100%
-src/adapters/swapi.py            58      5    91%
-src/api/dependencies.py          18      4    78%
-src/api/errors.py                37      1    97%
-src/api/routes.py                16      0   100%
-src/core/config.py               13      0   100%
-src/core/security.py             56      8    86%
-src/domain/exceptions.py         18      0   100%
-src/domain/models.py             10      0   100%
-src/use_cases/get_resource.py    66      4    94%
-src/use_cases/list_resources.py  48      1    98%
--------------------------------------------------
-TOTAL                           415     23    94%
+Name                                Stmts   Miss  Cover
+-------------------------------------------------------
+src/adapters/redis.py                  32      0   100%
+src/adapters/swapi.py                  58      5    91%
+src/api/dependencies.py                18      4    78%
+src/api/errors.py                      42      2    95%
+src/api/middleware.py                  39      2    95%
+src/api/routes.py                      16      0   100%
+src/core/config.py                     14      0   100%
+src/core/logging.py                    50      0   100%
+src/core/security.py                   56      8    86%
+src/domain/exceptions.py               18      0   100%
+src/domain/models.py                   10      0   100%
+src/interfaces/cache_interface.py       6      0   100%
+src/interfaces/swapi_interface.py       4      0   100%
+src/main.py                            33      0   100%
+src/use_cases/get_person.py             8      0   100%
+src/use_cases/get_resource.py          66      4    94%
+src/use_cases/list_resources.py        48      1    98%
+-------------------------------------------------------
+TOTAL                                 518     26    95%
+
+144 tests passed
 ```
 
 ## 📄 License

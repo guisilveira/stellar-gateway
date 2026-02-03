@@ -32,7 +32,6 @@ Este documento detalha **passo a passo** como configurar e deployar o Stellar Ga
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         GCP API GATEWAY                                      │
 │  • Valida JWT do Firebase                                                   │
-│  • Rate Limiting                                                            │
 │  • Roteamento                                                               │
 │  URL: https://stellar-gateway-XXXXX.uc.gateway.dev                          │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -343,7 +342,7 @@ gcloud run deploy stellar-gateway \
   --source=. \
   --region=$REGION \
   --vpc-connector=stellar-redis-connector \
-  --set-env-vars="ENVIRONMENT=prod,REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT" \
+  --set-env-vars="ENVIRONMENT=prod,REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT,GCP_PROJECT=$PROJECT_ID" \
   --allow-unauthenticated \
   --memory=512Mi \
   --timeout=60s
@@ -554,6 +553,57 @@ echo -e "\n=========================================="
 echo "   TODOS OS TESTES CONCLUÍDOS!"
 echo "=========================================="
 ```
+
+### 8.6 Visualizando Logs Estruturados
+
+O Stellar Gateway usa logs estruturados em formato JSON, integrados com o Cloud Logging do GCP.
+
+```bash
+# Ver logs recentes do Cloud Run (formato simplificado)
+gcloud run services logs read stellar-gateway --region=$REGION --limit=20
+
+# Ver logs estruturados no Cloud Logging (JSON completo)
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="stellar-gateway"' \
+  --project=$PROJECT_ID \
+  --limit=10 \
+  --format=json
+
+# Filtrar apenas logs do middleware (requests HTTP)
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="stellar-gateway" AND jsonPayload.logger="api.middleware"' \
+  --project=$PROJECT_ID \
+  --limit=10 \
+  --format='table(timestamp,severity,jsonPayload.message,jsonPayload.httpRequest.status)'
+
+# Filtrar por erros (4xx e 5xx)
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="stellar-gateway" AND severity>=WARNING' \
+  --project=$PROJECT_ID \
+  --limit=20
+```
+
+**Exemplo de log estruturado (produção):**
+```json
+{
+  "severity": "INFO",
+  "message": "GET /people/1 - 200",
+  "timestamp": "2026-02-02T23:53:09.099706+00:00",
+  "logger": "api.middleware",
+  "logging.googleapis.com/trace": "projects/stellar-gateway-10135/traces/abc123",
+  "httpRequest": {
+    "requestMethod": "GET",
+    "requestUrl": "/people/1",
+    "status": 200,
+    "latency": "45.23ms"
+  },
+  "request_id": "8d6cb3df-224b-4bb1-98d9-703887408317",
+  "user_id": "test-user"
+}
+```
+
+**Via Console GCP:**
+1. Acesse [Cloud Logging](https://console.cloud.google.com/logs)
+2. Filtre por `resource.type="cloud_run_revision"`
+3. Selecione o serviço `stellar-gateway`
+4. Os logs aparecem com severity colorido (INFO=azul, WARNING=amarelo, ERROR=vermelho)
 
 ---
 

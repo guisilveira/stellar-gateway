@@ -61,13 +61,21 @@ make test
 **Saída esperada:**
 ```
 ========================= test session starts ==========================
-collected XX items
+collected 144 items
 
-tests/unit/test_domain_models.py ....                             [ 10%]
-tests/unit/test_security.py ....                                  [ 20%]
-tests/integration/test_api_routes.py ........                     [ 60%]
-...
-========================= XX passed in X.XXs ===========================
+tests/integration/test_api_routes.py ............                [  8%]
+tests/integration/test_redis_adapter.py ...............          [ 18%]
+tests/integration/test_swapi_adapter.py .............            [ 27%]
+tests/unit/test_auth_cli.py ..................                   [ 40%]
+tests/unit/test_domain_models.py .......                         [ 45%]
+tests/unit/test_get_person_use_case.py ..                        [ 46%]
+tests/unit/test_get_resource_use_case.py ..............          [ 56%]
+tests/unit/test_list_resources_use_case.py ....................  [ 70%]
+tests/unit/test_logging.py ....................                  [ 84%]
+tests/unit/test_middleware.py .............                      [ 93%]
+tests/unit/test_sanity.py .                                      [ 93%]
+tests/unit/test_security.py .........                            [100%]
+========================= 144 passed in 4.52s ===========================
 ```
 
 ### 1.3 Executar Testes Específicos
@@ -486,23 +494,60 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 ### 5.4 Verificando Logs no GCP
 
+O Stellar Gateway usa **logs estruturados em formato JSON**, integrados com o Cloud Logging do GCP.
+
 ```bash
-# Logs do Cloud Run (últimas 50 entradas)
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=stellar-gateway" \
-  --limit=50 \
-  --format="table(timestamp,severity,textPayload)"
+# Logs do Cloud Run (formato simplificado)
+gcloud run services logs read stellar-gateway --region=us-central1 --limit=20
+
+# Logs estruturados no Cloud Logging (JSON completo)
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="stellar-gateway"' \
+  --project=stellar-gateway-10135 \
+  --limit=10 \
+  --format=json
+
+# Filtrar apenas logs de requests HTTP (middleware)
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="stellar-gateway" AND jsonPayload.logger="api.middleware"' \
+  --project=stellar-gateway-10135 \
+  --limit=10 \
+  --format='table(timestamp,severity,jsonPayload.message,jsonPayload.httpRequest.status)'
 
 # Logs em tempo real (streaming)
 gcloud logging tail "resource.type=cloud_run_revision AND resource.labels.service_name=stellar-gateway"
 
-# Filtrar por erros
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=stellar-gateway AND severity>=ERROR" \
+# Filtrar por erros (WARNING = 4xx, ERROR = 5xx)
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="stellar-gateway" AND severity>=WARNING' \
+  --project=stellar-gateway-10135 \
   --limit=20
 
 # Logs do API Gateway
 gcloud logging read "resource.type=apigateway.googleapis.com/Gateway" \
   --limit=50
 ```
+
+**Exemplo de log estruturado (produção):**
+```json
+{
+  "severity": "INFO",
+  "message": "GET /people/1 - 200",
+  "timestamp": "2026-02-02T23:53:09.099706+00:00",
+  "logger": "api.middleware",
+  "logging.googleapis.com/trace": "projects/stellar-gateway-10135/traces/abc123",
+  "httpRequest": {
+    "requestMethod": "GET",
+    "requestUrl": "/people/1",
+    "status": 200,
+    "latency": "45.23ms"
+  },
+  "request_id": "8d6cb3df-224b-4bb1-98d9-703887408317",
+  "user_id": "test-user"
+}
+```
+
+**Níveis de severidade:**
+- `INFO` → Requests bem-sucedidos (2xx)
+- `WARNING` → Erros do cliente (4xx)
+- `ERROR` → Erros do servidor (5xx)
 
 ### 5.5 Verificando Métricas
 

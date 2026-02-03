@@ -203,9 +203,9 @@ ou migrar para outro API Gateway que suporte rate limiting por JWT claims.
 |------|--------|------------|
 | 02/02 | ~~Script CLI Auth (`scripts/auth.py`)~~ | ✅ Concluído |
 | 02/02 | ~~Rate Limiting por usuário~~ | ⏸️ Adiado (limitação API Gateway) |
-| 03/02 | ~~Logs Estruturados (JSON)~~ | ✅ Concluído |
-| 03/02 | Redeploy no Cloud Run | 🔴 Alta |
-| 04/02 | Testes finais e documentação | 🟡 Média |
+| 02/02 | ~~Logs Estruturados (JSON)~~ | ✅ Concluído |
+| 02/02 | ~~Redeploy no Cloud Run~~ | ✅ Concluído |
+| 02/02 | ~~Testes finais e documentação~~ | ✅ Concluído |
 | 05/02 | **Entrega** | 🔴 Alta |
 
 ---

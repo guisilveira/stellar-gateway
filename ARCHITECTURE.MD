@@ -1,7 +1,7 @@
 # 🏛️ Stellar Gateway - System Architecture Document
 
-**Versão:** 1.1.0 (Final MVP)
-**Data:** 30/01/2026
+**Versão:** 1.2.0 (Production Ready)
+**Data:** 02/02/2026
 
 ---
 
@@ -25,7 +25,7 @@ Uma arquitetura em nuvem no **Google Cloud Platform (GCP)** que oferece:
 
 ## 2. System Design (Infraestrutura)
 
-A solução utiliza uma topologia **Serverless** moderna, onde a validação de segurança é delegada para a infraestrutura (Gateway), deixando a computação (Cloud Function) focada apenas em regras de negócio.
+A solução utiliza uma topologia **Serverless** moderna, onde a validação de segurança é delegada para a infraestrutura (Gateway), deixando a computação (Cloud Run) focada apenas em regras de negócio.
 
 ```mermaid
 flowchart LR
@@ -34,21 +34,21 @@ flowchart LR
     subgraph "Google Cloud Platform"
         Gateway -.->|1. Valida Token Auto| Firebase[🔥 Firebase Auth]
         
-        Gateway -->|2. Token OK + User Headers| GCF[⚡ Cloud Function]
+        Gateway -->|2. Token OK + User Headers| CloudRun[⚡ Cloud Run]
         Gateway --x|Token Inválido 401| Client
         
-        GCF <-->|3. Cache Hit Miss| Redis[(🧠 Redis)]
-        GCF -->|4. Fetch Data| SWAPI[☁️ SWAPI Externa]
+        CloudRun <-->|3. Cache Hit Miss| Redis[(🧠 Redis)]
+        CloudRun -->|4. Fetch Data| SWAPI[☁️ SWAPI Externa]
     end
 
     style Gateway fill:#00C853,stroke:#333,stroke-width:2px,color:white
-    style GCF fill:#4285F4,stroke:#333,stroke-width:2px,color:white
+    style CloudRun fill:#4285F4,stroke:#333,stroke-width:2px,color:white
     style Firebase fill:#FFCA28,stroke:#333,stroke-width:2px,color:black
     style Redis fill:#D8342F,stroke:#333,stroke-width:2px,color:white
 ```
 ### 2.1 Componentes da Arquitetura
-* **GCP API Gateway:** Ponto de entrada único. Responsável por roteamento, Rate Limiting e **Autenticação (Gatekeeper)**. Ele rejeita requisições inválidas antes que elas gerem custo computacional.
-* **Google Cloud Functions:** Executa a lógica de negócio (Python). Recebe requisições já autenticadas.
+* **GCP API Gateway:** Ponto de entrada único. Responsável por roteamento e **Autenticação (Gatekeeper)**. Ele rejeita requisições inválidas antes que elas gerem custo computacional.
+* **Google Cloud Run:** Executa a aplicação FastAPI (Python). Recebe requisições já autenticadas. Escala automaticamente de 0 a N instâncias.
 * **Redis (Memorystore):** Cache de baixa latência. Utiliza conexão persistente (*Singleton Pool*) para suportar alta concorrência.
 * **Firebase Auth:** Provedor de Identidade (IdP). Gerencia usuários e tokens OAuth (Google/Email).
 
@@ -63,7 +63,7 @@ O microsserviço Python segue estritamente a **Arquitetura Hexagonal (Ports & Ad
 ```mermaid
 graph TD
     subgraph "Drivers External Interface"
-        Main[main.py / Flask Handler]
+        Main[main.py / FastAPI Handler]
     end
 
     subgraph "Adapters Interface Impl"
@@ -90,9 +90,9 @@ graph TD
 
 A segurança adota uma abordagem de Defesa em Profundidade:
 
-* **Produção (GCP API Gateway):** É a barreira principal. Rejeita tokens inválidos antes de invocar a função (economia de custo).
-* **Desenvolvimento/Aplicação (Python Decorator):** Mantemos um decorator `@auth_required` no código.
-    * **Motivo 1 (Dev):** Permite rodar e testar a API localmente (`flask run`) sem precisar subir um API Gateway na nuvem a cada mudança.
+* **Produção (GCP API Gateway):** É a barreira principal. Rejeita tokens inválidos antes de invocar o Cloud Run (economia de custo).
+* **Desenvolvimento/Aplicação (Python Dependency):** Mantemos um dependency `get_current_user` no código.
+    * **Motivo 1 (Dev):** Permite rodar e testar a API localmente (`uvicorn`) sem precisar subir um API Gateway na nuvem a cada mudança.
     * **Motivo 2 (Prod):** Atua como segunda camada de validação caso a configuração do Gateway falhe ou seja contornada acidentalmente (rotas públicas expostas).
 
 ### 3.3 Responsabilidades
@@ -115,7 +115,7 @@ sequenceDiagram
     participant User
     participant Gateway as GCP API Gateway
     participant Firebase
-    participant Function as Cloud Function
+    participant CloudRun as Cloud Run
 
     User->>Gateway: GET /people/1 (Bearer JWT)
     Gateway->>Firebase: Valida Assinatura JWT
@@ -125,9 +125,9 @@ sequenceDiagram
         Gateway-->>User: 401 Unauthorized (Fim)
     else Token Válido
         Firebase-->>Gateway: OK (User Data)
-        Gateway->>Function: Forward Request + Header 'X-User-Info'
-        Function->>Function: Decodifica Header
-        Function-->>User: 200 OK
+        Gateway->>CloudRun: Forward Request + Header 'X-User-Info'
+        CloudRun->>CloudRun: Decodifica Header
+        CloudRun-->>User: 200 OK
     end
 ```
 
@@ -136,26 +136,26 @@ Demonstra a estratégia de performance para resolver o problema de "N+1 requests
 
 ```mermaid
 sequenceDiagram
-    participant Function as Use Case
+    participant CloudRun as Use Case
     participant Redis
     participant SWAPI
 
-    Function->>Redis: GET swapi:people:1
+    CloudRun->>Redis: GET swapi:people:1
     
     alt Cache HIT 🟢
-        Redis-->>Function: JSON Completo (Person + Nomes dos Filmes)
+        Redis-->>CloudRun: JSON Completo (Person + Nomes dos Filmes)
     else Cache MISS 🔴
-        Redis-->>Function: None
-        Function->>SWAPI: GET /people/1
-        SWAPI-->>Function: JSON Raw (apenas URLs dos filmes)
+        Redis-->>CloudRun: None
+        CloudRun->>SWAPI: GET /people/1
+        SWAPI-->>CloudRun: JSON Raw (apenas URLs dos filmes)
         
         par Async Fetch Enrichment
-            Function->>SWAPI: GET /films/1
-            Function->>SWAPI: GET /films/2
+            CloudRun->>SWAPI: GET /films/1
+            CloudRun->>SWAPI: GET /films/2
         end
         
-        Function->>Function: Merge dos Nomes dos Filmes no Modelo
-        Function->>Redis: SET swapi:people:1 (TTL 24h)
+        CloudRun->>CloudRun: Merge dos Nomes dos Filmes no Modelo
+        CloudRun->>Redis: SET swapi:people:1 (TTL 5min)
     end
 ```
 ## 5. Decisões de Arquitetura (ADRs)
@@ -165,7 +165,7 @@ sequenceDiagram
 * **Motivo:** Redução de custos (evita *Cold Starts* em chamadas não autorizadas) e desacoplamento de responsabilidade. O código foca em negócio, a infra foca em segurança.
 
 ### ADR 002: Cache-Aside com TTL Fixo
-* **Decisão:** Cachear respostas da SWAPI por 24 horas.
+* **Decisão:** Cachear respostas da SWAPI por 5 minutos.
 * **Motivo:** Dados de Star Wars são praticamente estáticos. O padrão Cache-Aside garante que o sistema se cure sozinho (self-healing) se o cache for limpo.
 
 ### ADR 003: Tratamento de Filtros (Smart Proxy)
@@ -176,7 +176,8 @@ sequenceDiagram
 
 ## 6. Especificação da API
 
-**Base URL:** `https://[REGION]-[PROJECT].cloudfunctions.net/stellar-gateway/api/v1`
+**Base URL (Produção):** `https://stellar-gateway-23t3upfn.uc.gateway.dev`
+**Base URL (Cloud Run Direto):** `https://stellar-gateway-165018665795.us-central1.run.app`
 
 ### Endpoints Principais
 
@@ -217,13 +218,25 @@ sequenceDiagram
 .
 ├── src/
 │   ├── adapters/          # Clientes HTTP (SWAPI) e Redis
-│   ├── core/              # Configurações e Exceptions
+│   ├── api/               # Rotas, middlewares e error handlers
+│   │   ├── routes.py      # Endpoints da API
+│   │   ├── errors.py      # Exception handlers (RFC 7807)
+│   │   ├── middleware.py  # Request logging middleware
+│   │   └── dependencies.py # Dependency injection
+│   ├── core/              # Configurações, segurança e logging
+│   │   ├── config.py      # Settings (Pydantic)
+│   │   ├── security.py    # Firebase auth
+│   │   └── logging.py     # Structured logging (JSON/Dev)
 │   ├── domain/            # Modelos de Dados (Pydantic)
+│   ├── interfaces/        # Abstract interfaces (Ports)
 │   ├── use_cases/         # Lógica de Negócio (Orquestração)
-│   └── main.py            # Entrypoint (Lê headers do Gateway)
-├── tests/                 # Testes Automatizados (Unitários/Integração)
-├── scripts/               # Utilitários (Gerador de Token Dev)
+│   └── main.py            # Entrypoint FastAPI (Lê headers do Gateway)
+├── tests/                 # Testes Automatizados (144 testes, 95% coverage)
+│   ├── unit/              # Testes unitários
+│   └── integration/       # Testes de integração
+├── scripts/               # Utilitários (auth.py, get_token.py)
 ├── openapi.yaml           # Configuração do GCP API Gateway
+├── Dockerfile             # Container definition
 ├── ARCHITECTURE.md        # Documentação de Arquitetura
 ├── TASKS.md               # Plano de Execução
 └── pyproject.toml         # Dependências (Poetry)
