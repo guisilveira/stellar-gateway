@@ -310,7 +310,10 @@ class TestGetResourceUseCaseEnrichment:
         }
         planet = {"name": "Tatooine", "url": "https://swapi.dev/api/planets/1/"}
         film1 = {"title": "A New Hope", "url": "https://swapi.dev/api/films/1/"}
-        film2 = {"title": "The Empire Strikes Back", "url": "https://swapi.dev/api/films/2/"}
+        film2 = {
+            "title": "The Empire Strikes Back",
+            "url": "https://swapi.dev/api/films/2/",
+        }
 
         mock_cache.get.return_value = None
         mock_swapi.get_resource.side_effect = [

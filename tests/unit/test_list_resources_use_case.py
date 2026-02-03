@@ -143,7 +143,7 @@ class TestListResourcesUseCase:
             }
         )
 
-        result = await use_case.execute(resource_type="planets", page=2, search="ta")
+        await use_case.execute(resource_type="planets", page=2, search="ta")
 
         mock_swapi.list_resources.assert_called_once_with(
             resource_type="planets",

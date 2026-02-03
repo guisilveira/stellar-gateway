@@ -57,7 +57,8 @@ def _get_api_key() -> str:
         raise ValueError(
             "FIREBASE_WEB_API_KEY is not set.\n"
             "Please add it to your .env file or environment variables.\n"
-            "You can find it in Firebase Console > Project Settings > General > Web API Key"
+            "You can find it in Firebase Console > Project Settings > "
+            "General > Web API Key"
         )
     return settings.FIREBASE_WEB_API_KEY
 
@@ -94,7 +95,9 @@ def _handle_firebase_error(response: httpx.Response) -> None:
         raise FirebaseAuthError(message, error_code)
 
     except (KeyError, ValueError):
-        raise FirebaseAuthError(f"HTTP {response.status_code}: {response.text}")
+        raise FirebaseAuthError(
+            f"HTTP {response.status_code}: {response.text}"
+        ) from None
 
 
 def signup(email: str, password: str) -> dict:
@@ -219,7 +222,8 @@ def cmd_signup(args: argparse.Namespace) -> None:
         print(f"\nRefresh Token:\n{result.get('refreshToken')}")
         print("\n" + "=" * 60)
         print("\nUsage example:")
-        print(f'  curl -H "Authorization: Bearer {result.get("idToken", "")[:50]}..." <API_URL>')
+        token_preview = result.get("idToken", "")[:50]
+        print(f'  curl -H "Authorization: Bearer {token_preview}..." <API_URL>')
 
     except (ValueError, FirebaseAuthError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
@@ -248,7 +252,8 @@ def cmd_login(args: argparse.Namespace) -> None:
         print(f"\nRefresh Token:\n{result.get('refreshToken')}")
         print("\n" + "=" * 60)
         print("\nUsage example:")
-        print(f'  curl -H "Authorization: Bearer {result.get("idToken", "")[:50]}..." <API_URL>')
+        token_preview = result.get("idToken", "")[:50]
+        print(f'  curl -H "Authorization: Bearer {token_preview}..." <API_URL>')
 
     except (ValueError, FirebaseAuthError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
@@ -311,17 +316,20 @@ Examples:
     # Signup command
     signup_parser = subparsers.add_parser("signup", help="Create a new user account")
     signup_parser.add_argument(
-        "-e", "--email",
+        "-e",
+        "--email",
         required=True,
         help="User's email address",
     )
     signup_parser.add_argument(
-        "-p", "--password",
+        "-p",
+        "--password",
         required=True,
         help="User's password (min 6 characters)",
     )
     signup_parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_true",
         help="Only output the ID token (useful for scripting)",
     )
@@ -330,17 +338,20 @@ Examples:
     # Login command
     login_parser = subparsers.add_parser("login", help="Login with email and password")
     login_parser.add_argument(
-        "-e", "--email",
+        "-e",
+        "--email",
         required=True,
         help="User's email address",
     )
     login_parser.add_argument(
-        "-p", "--password",
+        "-p",
+        "--password",
         required=True,
         help="User's password",
     )
     login_parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_true",
         help="Only output the ID token (useful for scripting)",
     )
@@ -349,12 +360,14 @@ Examples:
     # Refresh command
     refresh_parser = subparsers.add_parser("refresh", help="Refresh an expired token")
     refresh_parser.add_argument(
-        "-t", "--token",
+        "-t",
+        "--token",
         required=True,
         help="The refresh token from a previous login",
     )
     refresh_parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_true",
         help="Only output the new ID token (useful for scripting)",
     )

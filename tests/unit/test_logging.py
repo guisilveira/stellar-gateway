@@ -13,7 +13,6 @@ Tests cover:
 import json
 import logging
 from io import StringIO
-from unittest.mock import patch
 
 import pytest
 
@@ -79,7 +78,10 @@ class TestCloudRunJSONFormatter:
         result = formatter.format(log_record)
         parsed = json.loads(result)
 
-        assert parsed["logging.googleapis.com/trace"] == "projects/my-project/traces/abc123"
+        assert (
+            parsed["logging.googleapis.com/trace"]
+            == "projects/my-project/traces/abc123"
+        )
 
     def test_format_excludes_trace_id_when_not_present(
         self, formatter: CloudRunJSONFormatter, log_record: logging.LogRecord
@@ -138,9 +140,7 @@ class TestCloudRunJSONFormatter:
         assert "ValueError" in parsed["exception"]
         assert "Test error" in parsed["exception"]
 
-    def test_format_all_severity_levels(
-        self, formatter: CloudRunJSONFormatter
-    ) -> None:
+    def test_format_all_severity_levels(self, formatter: CloudRunJSONFormatter) -> None:
         """Test that all severity levels are formatted correctly."""
         levels = [
             (logging.DEBUG, "DEBUG"),
@@ -247,9 +247,7 @@ class TestDevelopmentFormatter:
         assert "latency" in result
         assert "45.00ms" in result
 
-    def test_format_includes_exception(
-        self, formatter: DevelopmentFormatter
-    ) -> None:
+    def test_format_includes_exception(self, formatter: DevelopmentFormatter) -> None:
         """Test that exception info is included."""
         try:
             raise ValueError("Test error")
@@ -307,7 +305,6 @@ class TestSetupLogging:
 
         # Add a dummy handler
         root_logger.addHandler(logging.StreamHandler())
-        initial_count = len(root_logger.handlers)
 
         setup_logging("dev")
 

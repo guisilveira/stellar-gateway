@@ -19,7 +19,6 @@ from tenacity import (
 from core.config import settings
 from domain.exceptions import ExternalServiceException, ResourceNotFoundException
 
-
 # Retry configuration constants
 MAX_RETRY_ATTEMPTS = 3
 RETRY_WAIT_MIN_SECONDS = 1

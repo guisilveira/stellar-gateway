@@ -31,7 +31,9 @@ class ResourceNotFoundException(StellarGatewayException):
     ) -> None:
         self.resource_type = resource_type
         self.resource_id = resource_id
-        default_message = f"{resource_type.capitalize()} with ID {resource_id} not found"
+        default_message = (
+            f"{resource_type.capitalize()} with ID {resource_id} not found"
+        )
         super().__init__(message or default_message)
 
 

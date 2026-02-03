@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient
 
 from domain.exceptions import ExternalServiceException, ResourceNotFoundException
 
-
 # Set test environment before importing app
 os.environ["ENVIRONMENT"] = "test"
 
@@ -47,8 +46,12 @@ def client(
     mock_list_resources_use_case: MagicMock,
 ) -> Generator[TestClient, None, None]:
     """Creates a test client with mocked dependencies."""
-    app.dependency_overrides[get_get_resource_use_case] = lambda: mock_get_resource_use_case
-    app.dependency_overrides[get_list_resources_use_case] = lambda: mock_list_resources_use_case
+    app.dependency_overrides[get_get_resource_use_case] = (
+        lambda: mock_get_resource_use_case
+    )
+    app.dependency_overrides[get_list_resources_use_case] = (
+        lambda: mock_list_resources_use_case
+    )
 
     yield TestClient(app)
 
@@ -302,7 +305,14 @@ class TestInvalidResourceType:
         mock_list_resources_use_case: MagicMock,
     ) -> None:
         """Should accept all valid SWAPI resource types."""
-        valid_resources = ["people", "planets", "films", "species", "vehicles", "starships"]
+        valid_resources = [
+            "people",
+            "planets",
+            "films",
+            "species",
+            "vehicles",
+            "starships",
+        ]
 
         mock_list_resources_use_case.execute = AsyncMock(
             return_value={

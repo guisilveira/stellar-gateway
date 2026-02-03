@@ -66,9 +66,7 @@ class TestGetPersonUseCase:
         }
 
     @pytest.mark.asyncio
-    async def test_execute_returns_person_model(
-        self, valid_person_data: dict
-    ) -> None:
+    async def test_execute_returns_person_model(self, valid_person_data: dict) -> None:
         """
         GetPersonUseCase.execute should return a valid Person domain model.
         """
@@ -96,9 +94,7 @@ class TestGetPersonUseCase:
         captured_resource_type: str | None = None
 
         class SpySwapiAdapter:
-            async def get_resource(
-                self, resource_type: str, resource_id: int
-            ) -> dict:
+            async def get_resource(self, resource_type: str, resource_id: int) -> dict:
                 nonlocal captured_id, captured_resource_type
                 captured_id = resource_id
                 captured_resource_type = resource_type

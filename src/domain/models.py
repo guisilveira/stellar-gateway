@@ -16,6 +16,7 @@ class SwapiBaseModel(BaseModel):
     Base class for all SWAPI entities.
     Contains common metadata fields found in every resource.
     """
+
     created: datetime
     edited: datetime
     url: HttpUrl
@@ -25,6 +26,7 @@ class Person(SwapiBaseModel):
     """
     Represents a Person (character) in the Star Wars universe.
     """
+
     name: str
     height: str
     mass: str
@@ -44,6 +46,7 @@ class Planet(SwapiBaseModel):
     """
     Represents a Planet in the Star Wars universe.
     """
+
     name: str
     rotation_period: str
     orbital_period: str
@@ -61,6 +64,7 @@ class Starship(SwapiBaseModel):
     """
     Represents a Starship in the Star Wars universe.
     """
+
     name: str
     model: str
     manufacturer: str
@@ -82,6 +86,7 @@ class Vehicle(SwapiBaseModel):
     """
     Represents a Vehicle in the Star Wars universe.
     """
+
     name: str
     model: str
     manufacturer: str
@@ -101,6 +106,7 @@ class Species(SwapiBaseModel):
     """
     Represents a Species in the Star Wars universe.
     """
+
     name: str
     classification: str
     designation: str
@@ -119,6 +125,7 @@ class Film(SwapiBaseModel):
     """
     Represents a Film in the Star Wars universe.
     """
+
     title: str
     episode_id: int
     opening_crawl: str

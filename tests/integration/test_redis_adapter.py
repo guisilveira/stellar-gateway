@@ -9,9 +9,9 @@ These tests use fakeredis to mock Redis operations and verify:
 5. Connection pool singleton behavior
 """
 
+import fakeredis.aioredis
 import pytest
 import pytest_asyncio
-import fakeredis.aioredis
 
 from adapters.redis import RedisClient
 
@@ -25,16 +25,12 @@ class TestRedisClientGetSet:
         return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     @pytest_asyncio.fixture
-    async def client(
-        self, fake_redis: fakeredis.aioredis.FakeRedis
-    ) -> RedisClient:
+    async def client(self, fake_redis: fakeredis.aioredis.FakeRedis) -> RedisClient:
         """Creates a RedisClient with injected fake Redis."""
         return RedisClient(redis=fake_redis)
 
     @pytest.mark.asyncio
-    async def test_set_and_get_value(
-        self, client: RedisClient
-    ) -> None:
+    async def test_set_and_get_value(self, client: RedisClient) -> None:
         """Should store and retrieve a value correctly."""
         await client.set("test_key", "test_value")
 
@@ -43,9 +39,7 @@ class TestRedisClientGetSet:
         assert result == "test_value"
 
     @pytest.mark.asyncio
-    async def test_get_nonexistent_key_returns_none(
-        self, client: RedisClient
-    ) -> None:
+    async def test_get_nonexistent_key_returns_none(self, client: RedisClient) -> None:
         """Should return None when key does not exist."""
         result = await client.get("nonexistent_key")
 
@@ -85,9 +79,7 @@ class TestRedisClientExists:
         return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     @pytest_asyncio.fixture
-    async def client(
-        self, fake_redis: fakeredis.aioredis.FakeRedis
-    ) -> RedisClient:
+    async def client(self, fake_redis: fakeredis.aioredis.FakeRedis) -> RedisClient:
         """Creates a RedisClient with injected fake Redis."""
         return RedisClient(redis=fake_redis)
 
@@ -121,16 +113,12 @@ class TestRedisClientDelete:
         return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     @pytest_asyncio.fixture
-    async def client(
-        self, fake_redis: fakeredis.aioredis.FakeRedis
-    ) -> RedisClient:
+    async def client(self, fake_redis: fakeredis.aioredis.FakeRedis) -> RedisClient:
         """Creates a RedisClient with injected fake Redis."""
         return RedisClient(redis=fake_redis)
 
     @pytest.mark.asyncio
-    async def test_delete_removes_existing_key(
-        self, client: RedisClient
-    ) -> None:
+    async def test_delete_removes_existing_key(self, client: RedisClient) -> None:
         """Should delete an existing key."""
         await client.set("to_delete", "value")
 
@@ -157,9 +145,7 @@ class TestRedisClientJsonSerialization:
         return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
     @pytest_asyncio.fixture
-    async def client(
-        self, fake_redis: fakeredis.aioredis.FakeRedis
-    ) -> RedisClient:
+    async def client(self, fake_redis: fakeredis.aioredis.FakeRedis) -> RedisClient:
         """Creates a RedisClient with injected fake Redis."""
         return RedisClient(redis=fake_redis)
 

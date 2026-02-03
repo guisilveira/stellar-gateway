@@ -10,7 +10,7 @@ Tests cover:
 """
 
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, Request
@@ -126,9 +126,7 @@ class TestRequestLoggingMiddleware:
         assert response.status_code == 200
 
         # Find the log record for our request
-        relevant_records = [
-            r for r in caplog.records if hasattr(r, "extra_fields")
-        ]
+        relevant_records = [r for r in caplog.records if hasattr(r, "extra_fields")]
         assert len(relevant_records) > 0
 
         record = relevant_records[0]
@@ -144,9 +142,7 @@ class TestRequestLoggingMiddleware:
         assert response.status_code == 200
 
         # Find the log record for our request
-        relevant_records = [
-            r for r in caplog.records if hasattr(r, "extra_fields")
-        ]
+        relevant_records = [r for r in caplog.records if hasattr(r, "extra_fields")]
         assert len(relevant_records) > 0
 
         record = relevant_records[0]
@@ -166,9 +162,7 @@ class TestRequestLoggingMiddleware:
         assert response.status_code == 200
 
         # Find the log record for our request
-        relevant_records = [
-            r for r in caplog.records if hasattr(r, "extra_fields")
-        ]
+        relevant_records = [r for r in caplog.records if hasattr(r, "extra_fields")]
         assert len(relevant_records) > 0
 
         record = relevant_records[0]
@@ -184,9 +178,7 @@ class TestTraceIdExtraction:
 
         # Create a mock request with trace header
         mock_request = MagicMock(spec=Request)
-        mock_request.headers = {
-            "X-Cloud-Trace-Context": "abc123def456/1;o=1"
-        }
+        mock_request.headers = {"X-Cloud-Trace-Context": "abc123def456/1;o=1"}
 
         with patch("api.middleware.settings") as mock_settings:
             mock_settings.GCP_PROJECT = "my-project"
@@ -212,9 +204,7 @@ class TestTraceIdExtraction:
         middleware = RequestLoggingMiddleware(MagicMock())
 
         mock_request = MagicMock(spec=Request)
-        mock_request.headers = {
-            "X-Cloud-Trace-Context": "abc123def456/1;o=1"
-        }
+        mock_request.headers = {"X-Cloud-Trace-Context": "abc123def456/1;o=1"}
 
         with patch("api.middleware.settings") as mock_settings:
             mock_settings.GCP_PROJECT = ""

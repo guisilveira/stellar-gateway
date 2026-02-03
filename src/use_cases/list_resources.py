@@ -10,7 +10,6 @@ from typing import Any, Literal
 from interfaces.cache_interface import CacheInterface
 from interfaces.swapi_interface import SwapiInterface
 
-
 # Default cache TTL: 5 minutes
 DEFAULT_CACHE_TTL_SECONDS = 300
 

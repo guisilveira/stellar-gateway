@@ -12,7 +12,6 @@ from fastapi import APIRouter, Query
 from api.dependencies import GetResourceUseCaseDep, ListResourcesUseCaseDep
 from core.security import CurrentUser
 
-
 # Valid SWAPI resource types
 VALID_RESOURCES = frozenset(
     {"people", "planets", "films", "species", "vehicles", "starships"}

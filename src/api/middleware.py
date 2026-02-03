@@ -12,7 +12,6 @@ This middleware logs every HTTP request with:
 import logging
 import time
 import uuid
-from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint

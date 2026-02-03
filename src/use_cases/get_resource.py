@@ -13,7 +13,6 @@ from typing import Any
 from interfaces.cache_interface import CacheInterface
 from interfaces.swapi_interface import SwapiInterface
 
-
 # Default cache TTL: 5 minutes
 DEFAULT_CACHE_TTL_SECONDS = 300
 
@@ -157,8 +156,7 @@ class GetResourceUseCase:
 
             # Fetch all resources in parallel
             tasks = [
-                self._fetch_resource_name(url, display_field)
-                for url in field_value
+                self._fetch_resource_name(url, display_field) for url in field_value
             ]
             return await asyncio.gather(*tasks)
 

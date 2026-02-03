@@ -13,7 +13,6 @@ import redis.asyncio as redis
 
 from core.config import settings
 
-
 # Module-level singleton for the Redis client
 _redis_client: "RedisClient | None" = None
 

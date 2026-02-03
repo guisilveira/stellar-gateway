@@ -20,7 +20,6 @@ from firebase_admin import auth, credentials
 
 from core.config import settings
 
-
 # Mock token accepted in dev/test environments
 MOCK_TOKEN = "mock-token"
 
@@ -177,28 +176,28 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="ID token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     except auth.ExpiredIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="ID token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     except auth.InvalidIdTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid ID token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Authentication failed: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 # Type alias for dependency injection

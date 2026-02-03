@@ -72,7 +72,9 @@ def get_list_resources_use_case(
 
 
 # Type aliases for dependency injection
-GetResourceUseCaseDep = Annotated[GetResourceUseCase, Depends(get_get_resource_use_case)]
+GetResourceUseCaseDep = Annotated[
+    GetResourceUseCase, Depends(get_get_resource_use_case)
+]
 ListResourcesUseCaseDep = Annotated[
     ListResourcesUseCase, Depends(get_list_resources_use_case)
 ]

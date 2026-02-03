@@ -8,7 +8,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import httpx
 import pytest
 
 # Add scripts to path for imports
@@ -53,9 +52,7 @@ class TestHandleFirebaseError:
     def test_handles_email_exists_error(self) -> None:
         """Should provide friendly message for EMAIL_EXISTS error."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "error": {"message": "EMAIL_EXISTS"}
-        }
+        mock_response.json.return_value = {"error": {"message": "EMAIL_EXISTS"}}
 
         with pytest.raises(FirebaseAuthError) as exc_info:
             _handle_firebase_error(mock_response)
@@ -66,9 +63,7 @@ class TestHandleFirebaseError:
     def test_handles_invalid_password_error(self) -> None:
         """Should provide friendly message for INVALID_PASSWORD error."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "error": {"message": "INVALID_PASSWORD"}
-        }
+        mock_response.json.return_value = {"error": {"message": "INVALID_PASSWORD"}}
 
         with pytest.raises(FirebaseAuthError) as exc_info:
             _handle_firebase_error(mock_response)
@@ -90,9 +85,7 @@ class TestHandleFirebaseError:
     def test_handles_weak_password_error(self) -> None:
         """Should provide friendly message for WEAK_PASSWORD error."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "error": {"message": "WEAK_PASSWORD"}
-        }
+        mock_response.json.return_value = {"error": {"message": "WEAK_PASSWORD"}}
 
         with pytest.raises(FirebaseAuthError) as exc_info:
             _handle_firebase_error(mock_response)
@@ -102,9 +95,7 @@ class TestHandleFirebaseError:
     def test_handles_unknown_error(self) -> None:
         """Should include error code for unknown errors."""
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "error": {"message": "SOME_NEW_ERROR"}
-        }
+        mock_response.json.return_value = {"error": {"message": "SOME_NEW_ERROR"}}
 
         with pytest.raises(FirebaseAuthError) as exc_info:
             _handle_firebase_error(mock_response)
@@ -162,9 +153,7 @@ class TestSignup:
 
         mock_response = MagicMock()
         mock_response.status_code = 400
-        mock_response.json.return_value = {
-            "error": {"message": "EMAIL_EXISTS"}
-        }
+        mock_response.json.return_value = {"error": {"message": "EMAIL_EXISTS"}}
         mock_post.return_value = mock_response
 
         with pytest.raises(FirebaseAuthError) as exc_info:
@@ -230,9 +219,7 @@ class TestLogin:
 
         mock_response = MagicMock()
         mock_response.status_code = 400
-        mock_response.json.return_value = {
-            "error": {"message": "EMAIL_NOT_FOUND"}
-        }
+        mock_response.json.return_value = {"error": {"message": "EMAIL_NOT_FOUND"}}
         mock_post.return_value = mock_response
 
         with pytest.raises(FirebaseAuthError) as exc_info:

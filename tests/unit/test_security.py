@@ -156,13 +156,14 @@ class TestApiGatewayUserInfo:
             "name": "Gateway User",
             "email_verified": True,
         }
-        encoded_user_info = base64.urlsafe_b64encode(
-            json.dumps(user_info).encode()
-        ).decode().rstrip("=")
+        encoded_user_info = (
+            base64.urlsafe_b64encode(json.dumps(user_info).encode())
+            .decode()
+            .rstrip("=")
+        )
 
         response = client.get(
-            "/protected",
-            headers={API_GATEWAY_USER_INFO_HEADER: encoded_user_info}
+            "/protected", headers={API_GATEWAY_USER_INFO_HEADER: encoded_user_info}
         )
 
         assert response.status_code == 200
@@ -179,16 +180,18 @@ class TestApiGatewayUserInfo:
         mock_settings.ENVIRONMENT = "prod"
 
         user_info = {"sub": "priority-user", "email": "priority@example.com"}
-        encoded_user_info = base64.urlsafe_b64encode(
-            json.dumps(user_info).encode()
-        ).decode().rstrip("=")
+        encoded_user_info = (
+            base64.urlsafe_b64encode(json.dumps(user_info).encode())
+            .decode()
+            .rstrip("=")
+        )
 
         response = client.get(
             "/protected",
             headers={
                 API_GATEWAY_USER_INFO_HEADER: encoded_user_info,
-                "Authorization": "Bearer some-other-token"
-            }
+                "Authorization": "Bearer some-other-token",
+            },
         )
 
         assert response.status_code == 200
@@ -206,8 +209,8 @@ class TestApiGatewayUserInfo:
             "/protected",
             headers={
                 API_GATEWAY_USER_INFO_HEADER: "not-valid-base64!!!",
-                "Authorization": f"Bearer {MOCK_TOKEN}"
-            }
+                "Authorization": f"Bearer {MOCK_TOKEN}",
+            },
         )
 
         assert response.status_code == 200
