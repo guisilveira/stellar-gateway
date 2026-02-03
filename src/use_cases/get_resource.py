@@ -4,17 +4,38 @@ GetResource Use Case.
 This module implements the Cache-Aside pattern for fetching SWAPI resources.
 It first checks the cache, and only calls SWAPI on cache miss.
 Supports data enrichment (hydration) to replace URLs with resource names.
+Optionally validates data against domain models for type safety.
 """
 
 import asyncio
 import re
-from typing import Any
+from typing import Any, Type
 
+from domain.models import (
+    Film,
+    Person,
+    Planet,
+    Species,
+    Starship,
+    SwapiBaseModel,
+    Vehicle,
+)
 from interfaces.cache_interface import CacheInterface
 from interfaces.swapi_interface import SwapiInterface
 
 # Default cache TTL: 5 minutes
 DEFAULT_CACHE_TTL_SECONDS = 300
+
+# Mapping of resource types to their domain models
+# This enables type validation and IDE autocomplete
+RESOURCE_MODELS: dict[str, Type[SwapiBaseModel]] = {
+    "people": Person,
+    "planets": Planet,
+    "films": Film,
+    "species": Species,
+    "vehicles": Vehicle,
+    "starships": Starship,
+}
 
 # Fields that contain SWAPI URLs and should be enriched
 # Maps field name to the attribute used for display (name or title)
@@ -42,13 +63,14 @@ class GetResourceUseCase:
     This use case implements the following flow:
     1. Check if the resource exists in cache
     2. If cache hit: return cached data
-    3. If cache miss: fetch from SWAPI, cache the result, return data
+    3. If cache miss: fetch from SWAPI, validate with model, cache the result
     4. Optionally enrich the data by replacing URLs with resource names
 
     Attributes:
         _swapi: The SWAPI client interface.
         _cache: The cache client interface.
         _cache_ttl_seconds: TTL for cached entries.
+        _validate: Whether to validate data against domain models.
     """
 
     def __init__(
@@ -56,6 +78,7 @@ class GetResourceUseCase:
         swapi: SwapiInterface,
         cache: CacheInterface,
         cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
+        validate: bool = True,
     ) -> None:
         """
         Initializes the GetResourceUseCase.
@@ -64,10 +87,56 @@ class GetResourceUseCase:
             swapi: The SWAPI client implementing SwapiInterface.
             cache: The cache client implementing CacheInterface.
             cache_ttl_seconds: Time-to-live for cached entries (default: 300s).
+            validate: Whether to validate data against Pydantic models
+                     (default: True). Set to False to disable validation
+                     for better performance.
         """
         self._swapi = swapi
         self._cache = cache
         self._cache_ttl_seconds = cache_ttl_seconds
+        self._validate = validate
+
+    def _get_model_for_resource(
+        self, resource_type: str
+    ) -> Type[SwapiBaseModel] | None:
+        """
+        Gets the domain model class for a resource type.
+
+        Args:
+            resource_type: The type of resource (e.g., "people", "planets").
+
+        Returns:
+            The Pydantic model class, or None if not found.
+        """
+        return RESOURCE_MODELS.get(resource_type)
+
+    def _validate_data(
+        self, resource_type: str, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Validates resource data against its domain model.
+
+        Args:
+            resource_type: The type of resource.
+            data: The raw data from SWAPI or cache.
+
+        Returns:
+            The validated data (as dict for enrichment compatibility).
+
+        Raises:
+            ValidationError: If data doesn't match the model schema.
+        """
+        if not self._validate:
+            return data
+
+        model_class = self._get_model_for_resource(resource_type)
+        if model_class is None:
+            # Unknown resource type, return as-is
+            return data
+
+        # Validate with Pydantic and convert back to dict with JSON-serializable values
+        validated = model_class(**data)
+        return validated.model_dump(mode="json")
 
     def _generate_cache_key(self, resource_type: str, resource_id: int) -> str:
         """
@@ -87,7 +156,7 @@ class GetResourceUseCase:
         Extracts resource type and ID from a SWAPI URL.
 
         Args:
-            url: The SWAPI URL to parse.
+            url: The SWAPI URL string to parse.
 
         Returns:
             A tuple of (resource_type, resource_id) or None if invalid.
@@ -123,7 +192,10 @@ class GetResourceUseCase:
 
         try:
             # Fetch without enrichment to avoid infinite recursion
-            resource_data = await self.execute(resource_type, resource_id, enrich=False)
+            # Also disable validation for sub-resources to avoid overhead
+            resource_data = await self.execute(
+                resource_type, resource_id, enrich=False, validate=False
+            )
             return resource_data.get(display_field, url)
         except Exception:
             # On any error, preserve the original URL
@@ -213,12 +285,14 @@ class GetResourceUseCase:
         resource_type: str,
         resource_id: int,
         enrich: bool = True,
+        validate: bool | None = None,
     ) -> dict[str, Any]:
         """
         Fetches a resource using the Cache-Aside pattern.
 
         First checks the cache for the resource. If found, returns the cached
-        data. If not found, fetches from SWAPI, caches the result, and returns.
+        data. If not found, fetches from SWAPI, validates with domain model,
+        caches the result, and returns.
         Optionally enriches the data by replacing URLs with resource names.
 
         Args:
@@ -226,6 +300,9 @@ class GetResourceUseCase:
             resource_id: The unique identifier of the resource.
             enrich: Whether to enrich URLs with resource names (default: True).
                    Set to False when fetching sub-resources to avoid recursion.
+            validate: Whether to validate data against Pydantic models.
+                     If None, uses the instance's validate setting (default: True).
+                     Set to False for sub-resources to reduce overhead.
 
         Returns:
             A dictionary containing the resource data (optionally enriched).
@@ -233,14 +310,21 @@ class GetResourceUseCase:
         Raises:
             ResourceNotFoundException: If the resource does not exist in SWAPI.
             ExternalServiceException: If SWAPI is unavailable.
+            ValidationError: If data doesn't match the domain model schema.
         """
+        # Use instance default if not specified
+        if validate is None:
+            validate = self._validate
+
         cache_key = self._generate_cache_key(resource_type, resource_id)
 
         # Step 1: Check cache
         cached_data = await self._cache.get(cache_key)
 
         if cached_data is not None:
-            # Cache hit - enrich if requested and return
+            # Cache hit - validate and enrich if requested
+            if validate:
+                cached_data = self._validate_data(resource_type, cached_data)
             if enrich:
                 cached_data = await self._enrich_resource(cached_data)
             return cached_data
@@ -248,14 +332,18 @@ class GetResourceUseCase:
         # Step 2: Cache miss - fetch from SWAPI
         resource_data = await self._swapi.get_resource(resource_type, resource_id)
 
-        # Step 3: Cache the raw result (before enrichment)
+        # Step 3: Validate data against domain model (before caching)
+        if validate:
+            resource_data = self._validate_data(resource_type, resource_data)
+
+        # Step 4: Cache the validated result (before enrichment)
         await self._cache.set(
             cache_key,
             resource_data,
             ttl_seconds=self._cache_ttl_seconds,
         )
 
-        # Step 4: Optionally enrich the data
+        # Step 5: Optionally enrich the data
         if enrich:
             resource_data = await self._enrich_resource(resource_data)
 

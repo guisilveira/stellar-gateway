@@ -12,6 +12,26 @@ import pytest
 
 from use_cases.get_resource import GetResourceUseCase
 
+# Complete Person model data for validation
+COMPLETE_PERSON_DATA = {
+    "name": "Luke Skywalker",
+    "height": "172",
+    "mass": "77",
+    "hair_color": "blond",
+    "skin_color": "fair",
+    "eye_color": "blue",
+    "birth_year": "19BBY",
+    "gender": "male",
+    "homeworld": "https://swapi.dev/api/planets/1/",
+    "films": ["https://swapi.dev/api/films/1/"],
+    "species": [],
+    "vehicles": [],
+    "starships": [],
+    "created": "2014-12-09T13:50:51.644000Z",
+    "edited": "2014-12-20T21:17:56.891000Z",
+    "url": "https://swapi.dev/api/people/1/",
+}
+
 
 class TestGetResourceUseCaseCacheHit:
     """Test suite for cache hit scenarios."""
@@ -41,14 +61,11 @@ class TestGetResourceUseCaseCacheHit:
         mock_cache: AsyncMock,
     ) -> None:
         """Should return cached data without calling SWAPI when cache hit."""
-        cached_person = {
-            "name": "Luke Skywalker",
-            "height": "172",
-            "url": "https://swapi.dev/api/people/1/",
-        }
+        cached_person = COMPLETE_PERSON_DATA.copy()
         mock_cache.get.return_value = cached_person
 
-        result = await use_case.execute("people", 1)
+        # Disable enrichment to avoid side effects from cache mock
+        result = await use_case.execute("people", 1, enrich=False)
 
         assert result == cached_person
         mock_cache.get.assert_called_once_with("swapi:people:1")
@@ -62,9 +79,9 @@ class TestGetResourceUseCaseCacheHit:
         mock_cache: AsyncMock,
     ) -> None:
         """Should not call cache.set when data is already cached."""
-        mock_cache.get.return_value = {"name": "Cached Data"}
+        mock_cache.get.return_value = COMPLETE_PERSON_DATA.copy()
 
-        await use_case.execute("planets", 1)
+        await use_case.execute("people", 1)
 
         mock_cache.set.assert_not_called()
 
@@ -92,24 +109,7 @@ class TestGetResourceUseCaseCacheMiss:
     @pytest.fixture
     def swapi_person_response(self) -> dict:
         """Valid SWAPI person response."""
-        return {
-            "name": "Luke Skywalker",
-            "height": "172",
-            "mass": "77",
-            "hair_color": "blond",
-            "skin_color": "fair",
-            "eye_color": "blue",
-            "birth_year": "19BBY",
-            "gender": "male",
-            "homeworld": "https://swapi.dev/api/planets/1/",
-            "films": ["https://swapi.dev/api/films/1/"],
-            "species": [],
-            "vehicles": [],
-            "starships": [],
-            "created": "2014-12-09T13:50:51.644000Z",
-            "edited": "2014-12-20T21:17:56.891000Z",
-            "url": "https://swapi.dev/api/people/1/",
-        }
+        return COMPLETE_PERSON_DATA.copy()
 
     @pytest.mark.asyncio
     async def test_fetches_from_swapi_when_cache_miss(
@@ -156,7 +156,45 @@ class TestGetResourceUseCaseCacheMiss:
     ) -> None:
         """Should generate correct cache keys for different resource types."""
         mock_cache.get.return_value = None
-        mock_swapi.get_resource.return_value = {"name": "Test"}
+        # Return minimal valid data for each resource type
+        mock_swapi.get_resource.side_effect = [
+            {
+                "name": "Tatooine",
+                "rotation_period": "23",
+                "orbital_period": "304",
+                "diameter": "10465",
+                "climate": "arid",
+                "gravity": "1 standard",
+                "terrain": "desert",
+                "surface_water": "1",
+                "population": "200000",
+                "residents": [],
+                "films": [],
+                "created": "2014-12-09T13:50:49.641000Z",
+                "edited": "2014-12-20T20:58:18.411000Z",
+                "url": "https://swapi.dev/api/planets/5/",
+            },
+            {
+                "name": "Death Star",
+                "model": "DS-1 Orbital Battle Station",
+                "manufacturer": "Imperial Department",
+                "cost_in_credits": "1000000000000",
+                "length": "120000",
+                "max_atmosphering_speed": "n/a",
+                "crew": "342,953",
+                "passengers": "843,342",
+                "cargo_capacity": "1000000000000",
+                "consumables": "3 years",
+                "hyperdrive_rating": "4.0",
+                "MGLT": "10",
+                "starship_class": "Deep Space Mobile Battlestation",
+                "pilots": [],
+                "films": [],
+                "created": "2014-12-09T13:50:51.644000Z",
+                "edited": "2014-12-20T21:17:56.891000Z",
+                "url": "https://swapi.dev/api/starships/10/",
+            },
+        ]
 
         # Test planets
         await use_case.execute("planets", 5)
@@ -179,9 +217,9 @@ class TestGetResourceUseCaseCacheMiss:
             cache_ttl_seconds=600,
         )
         mock_cache.get.return_value = None
-        mock_swapi.get_resource.return_value = {"name": "Test"}
+        mock_swapi.get_resource.return_value = COMPLETE_PERSON_DATA.copy()
 
-        await use_case.execute("people", 1)
+        await use_case.execute("people", 1, enrich=False)
 
         call_kwargs = mock_cache.set.call_args[1]
         assert call_kwargs.get("ttl_seconds") == 600
@@ -249,11 +287,19 @@ class TestGetResourceUseCaseEnrichment:
         return {
             "name": "Luke Skywalker",
             "height": "172",
+            "mass": "77",
+            "hair_color": "blond",
+            "skin_color": "fair",
+            "eye_color": "blue",
+            "birth_year": "19BBY",
+            "gender": "male",
             "homeworld": "https://swapi.dev/api/planets/1/",
             "films": [],
             "species": [],
             "vehicles": [],
             "starships": [],
+            "created": "2014-12-09T13:50:51.644000Z",
+            "edited": "2014-12-20T21:17:56.891000Z",
             "url": "https://swapi.dev/api/people/1/",
         }
 
@@ -262,7 +308,18 @@ class TestGetResourceUseCaseEnrichment:
         """Tatooine planet response."""
         return {
             "name": "Tatooine",
+            "rotation_period": "23",
+            "orbital_period": "304",
+            "diameter": "10465",
             "climate": "arid",
+            "gravity": "1 standard",
+            "terrain": "desert",
+            "surface_water": "1",
+            "population": "200000",
+            "residents": [],
+            "films": [],
+            "created": "2014-12-09T13:50:49.641000Z",
+            "edited": "2014-12-20T20:58:18.411000Z",
             "url": "https://swapi.dev/api/planets/1/",
         }
 
@@ -298,6 +355,13 @@ class TestGetResourceUseCaseEnrichment:
         """Should replace films URLs with film titles."""
         person_with_films = {
             "name": "Luke Skywalker",
+            "height": "172",
+            "mass": "77",
+            "hair_color": "blond",
+            "skin_color": "fair",
+            "eye_color": "blue",
+            "birth_year": "19BBY",
+            "gender": "male",
             "homeworld": "https://swapi.dev/api/planets/1/",
             "films": [
                 "https://swapi.dev/api/films/1/",
@@ -306,12 +370,56 @@ class TestGetResourceUseCaseEnrichment:
             "species": [],
             "vehicles": [],
             "starships": [],
+            "created": "2014-12-09T13:50:51.644000Z",
+            "edited": "2014-12-20T21:17:56.891000Z",
             "url": "https://swapi.dev/api/people/1/",
         }
-        planet = {"name": "Tatooine", "url": "https://swapi.dev/api/planets/1/"}
-        film1 = {"title": "A New Hope", "url": "https://swapi.dev/api/films/1/"}
+        planet = {
+            "name": "Tatooine",
+            "rotation_period": "23",
+            "orbital_period": "304",
+            "diameter": "10465",
+            "climate": "arid",
+            "gravity": "1 standard",
+            "terrain": "desert",
+            "surface_water": "1",
+            "population": "200000",
+            "residents": [],
+            "films": [],
+            "created": "2014-12-09T13:50:49.641000Z",
+            "edited": "2014-12-20T20:58:18.411000Z",
+            "url": "https://swapi.dev/api/planets/1/",
+        }
+        film1 = {
+            "title": "A New Hope",
+            "episode_id": 4,
+            "opening_crawl": "It is a period of civil war...",
+            "director": "George Lucas",
+            "producer": "Gary Kurtz",
+            "release_date": "1977-05-25",
+            "characters": [],
+            "planets": [],
+            "starships": [],
+            "vehicles": [],
+            "species": [],
+            "created": "2014-12-09T13:50:51.644000Z",
+            "edited": "2014-12-20T21:17:56.891000Z",
+            "url": "https://swapi.dev/api/films/1/",
+        }
         film2 = {
             "title": "The Empire Strikes Back",
+            "episode_id": 5,
+            "opening_crawl": "It is a dark time for the Rebellion...",
+            "director": "Irvin Kershner",
+            "producer": "Gary Kurtz",
+            "release_date": "1980-05-17",
+            "characters": [],
+            "planets": [],
+            "starships": [],
+            "vehicles": [],
+            "species": [],
+            "created": "2014-12-09T13:50:51.644000Z",
+            "edited": "2014-12-20T21:17:56.891000Z",
             "url": "https://swapi.dev/api/films/2/",
         }
 
@@ -400,14 +508,38 @@ class TestGetResourceUseCaseEnrichment:
         """Should handle empty lists gracefully."""
         person_with_empty_lists = {
             "name": "Luke Skywalker",
+            "height": "172",
+            "mass": "77",
+            "hair_color": "blond",
+            "skin_color": "fair",
+            "eye_color": "blue",
+            "birth_year": "19BBY",
+            "gender": "male",
             "homeworld": "https://swapi.dev/api/planets/1/",
             "films": [],
             "species": [],
             "vehicles": [],
             "starships": [],
+            "created": "2014-12-09T13:50:51.644000Z",
+            "edited": "2014-12-20T21:17:56.891000Z",
             "url": "https://swapi.dev/api/people/1/",
         }
-        planet = {"name": "Tatooine", "url": "https://swapi.dev/api/planets/1/"}
+        planet = {
+            "name": "Tatooine",
+            "rotation_period": "23",
+            "orbital_period": "304",
+            "diameter": "10465",
+            "climate": "arid",
+            "gravity": "1 standard",
+            "terrain": "desert",
+            "surface_water": "1",
+            "population": "200000",
+            "residents": [],
+            "films": [],
+            "created": "2014-12-09T13:50:49.641000Z",
+            "edited": "2014-12-20T20:58:18.411000Z",
+            "url": "https://swapi.dev/api/planets/1/",
+        }
 
         mock_cache.get.return_value = None
         mock_swapi.get_resource.side_effect = [person_with_empty_lists, planet]
@@ -427,6 +559,13 @@ class TestGetResourceUseCaseEnrichment:
         """Should fetch multiple enrichment resources in parallel."""
         person = {
             "name": "Luke Skywalker",
+            "height": "172",
+            "mass": "77",
+            "hair_color": "blond",
+            "skin_color": "fair",
+            "eye_color": "blue",
+            "birth_year": "19BBY",
+            "gender": "male",
             "homeworld": "https://swapi.dev/api/planets/1/",
             "films": [
                 "https://swapi.dev/api/films/1/",
@@ -435,6 +574,8 @@ class TestGetResourceUseCaseEnrichment:
             "species": ["https://swapi.dev/api/species/1/"],
             "vehicles": [],
             "starships": [],
+            "created": "2014-12-09T13:50:51.644000Z",
+            "edited": "2014-12-20T21:17:56.891000Z",
             "url": "https://swapi.dev/api/people/1/",
         }
 

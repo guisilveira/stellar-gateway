@@ -160,11 +160,14 @@ def _auth_with_credentials(url: str, email: str, password: str) -> dict:
     Raises:
         FirebaseAuthError: If authentication fails.
     """
-    return _firebase_request(url, {
-        "email": email,
-        "password": password,
-        "returnSecureToken": True,
-    })
+    return _firebase_request(
+        url,
+        {
+            "email": email,
+            "password": password,
+            "returnSecureToken": True,
+        },
+    )
 
 
 def refresh(refresh_token: str) -> dict:
@@ -180,10 +183,14 @@ def refresh(refresh_token: str) -> dict:
     Raises:
         FirebaseAuthError: If refresh fails.
     """
-    return _firebase_request(REFRESH_URL, {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-    }, use_json=False)
+    return _firebase_request(
+        REFRESH_URL,
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        },
+        use_json=False,
+    )
 
 
 def _print_auth_result(result: dict, config: AuthCommandConfig) -> None:
