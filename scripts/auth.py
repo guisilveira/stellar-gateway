@@ -21,6 +21,7 @@ Requirements:
 
 import argparse
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -36,6 +37,15 @@ FIREBASE_API_BASE = "https://identitytoolkit.googleapis.com/v1/accounts"
 SIGNUP_URL = f"{FIREBASE_API_BASE}:signUp"
 LOGIN_URL = f"{FIREBASE_API_BASE}:signInWithPassword"
 REFRESH_URL = "https://securetoken.googleapis.com/v1/token"
+
+
+@dataclass(frozen=True)
+class AuthCommandConfig:
+    """Configuration for authentication command output."""
+
+    title: str
+    token_key: str = "idToken"
+    show_usage: bool = True
 
 
 class FirebaseAuthError(Exception):
@@ -135,32 +145,12 @@ def _firebase_request(url: str, payload: dict, use_json: bool = True) -> dict:
     return response.json()
 
 
-def signup(email: str, password: str) -> dict:
+def _auth_with_credentials(url: str, email: str, password: str) -> dict:
     """
-    Creates a new user account with email and password.
+    Authenticates with email/password to a Firebase endpoint.
 
     Args:
-        email: The user's email address.
-        password: The user's password (min 6 characters).
-
-    Returns:
-        A dictionary containing 'idToken', 'refreshToken', 'localId' (uid), etc.
-
-    Raises:
-        FirebaseAuthError: If signup fails.
-    """
-    return _firebase_request(SIGNUP_URL, {
-        "email": email,
-        "password": password,
-        "returnSecureToken": True,
-    })
-
-
-def login(email: str, password: str) -> dict:
-    """
-    Authenticates a user with email and password.
-
-    Args:
+        url: The Firebase API endpoint URL.
         email: The user's email address.
         password: The user's password.
 
@@ -168,9 +158,9 @@ def login(email: str, password: str) -> dict:
         A dictionary containing 'idToken', 'refreshToken', 'localId' (uid), etc.
 
     Raises:
-        FirebaseAuthError: If login fails.
+        FirebaseAuthError: If authentication fails.
     """
-    return _firebase_request(LOGIN_URL, {
+    return _firebase_request(url, {
         "email": email,
         "password": password,
         "returnSecureToken": True,
@@ -196,23 +186,16 @@ def refresh(refresh_token: str) -> dict:
     }, use_json=False)
 
 
-def _print_auth_result(
-    result: dict,
-    title: str,
-    token_key: str = "idToken",
-    show_usage: bool = True,
-) -> None:
+def _print_auth_result(result: dict, config: AuthCommandConfig) -> None:
     """
     Prints formatted authentication result to stdout.
 
     Args:
         result: The authentication result dictionary.
-        title: The success message title.
-        token_key: The key for the ID token in the result.
-        show_usage: Whether to show the curl usage example.
+        config: The command configuration with title, token_key, and show_usage.
     """
     print("\n" + "=" * 60)
-    print(f"SUCCESS! {title}")
+    print(f"SUCCESS! {config.title}")
     print("=" * 60)
 
     # User ID (different keys for different endpoints)
@@ -228,7 +211,7 @@ def _print_auth_result(
     print(f"Expires in: {expires_in} seconds")
 
     # Tokens
-    print(f"\nID Token:\n{result.get(token_key)}")
+    print(f"\nID Token:\n{result.get(config.token_key)}")
 
     refresh_key = "refreshToken" if "refreshToken" in result else "refresh_token"
     print(f"\nRefresh Token:\n{result.get(refresh_key)}")
@@ -236,18 +219,16 @@ def _print_auth_result(
     print("\n" + "=" * 60)
 
     # Usage example
-    if show_usage:
+    if config.show_usage:
         print("\nUsage example:")
-        token_preview = result.get(token_key, "")[:50]
+        token_preview = result.get(config.token_key, "")[:50]
         print(f'  curl -H "Authorization: Bearer {token_preview}..." <API_URL>')
 
 
 def _run_auth_command(
     auth_func: Callable[[], dict],
     args: argparse.Namespace,
-    title: str,
-    token_key: str = "idToken",
-    show_usage: bool = True,
+    config: AuthCommandConfig,
 ) -> None:
     """
     Generic handler for authentication commands with error handling.
@@ -255,18 +236,16 @@ def _run_auth_command(
     Args:
         auth_func: The authentication function to call.
         args: Parsed command line arguments.
-        title: The success message title.
-        token_key: The key for the ID token in the result.
-        show_usage: Whether to show the curl usage example.
+        config: The command configuration with title, token_key, and show_usage.
     """
     try:
         result = auth_func()
 
         if args.quiet:
-            print(result[token_key])
+            print(result[config.token_key])
             return
 
-        _print_auth_result(result, title, token_key, show_usage)
+        _print_auth_result(result, config)
 
     except (ValueError, FirebaseAuthError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
@@ -279,30 +258,29 @@ def _run_auth_command(
 def cmd_signup(args: argparse.Namespace) -> None:
     """Handler for the 'signup' command."""
     _run_auth_command(
-        lambda: signup(args.email, args.password),
+        lambda: _auth_with_credentials(SIGNUP_URL, args.email, args.password),
         args,
-        "User created",
+        AuthCommandConfig(title="User created"),
     )
 
 
 def cmd_login(args: argparse.Namespace) -> None:
     """Handler for the 'login' command."""
     _run_auth_command(
-        lambda: login(args.email, args.password),
+        lambda: _auth_with_credentials(LOGIN_URL, args.email, args.password),
         args,
-        "Logged in",
+        AuthCommandConfig(title="Logged in"),
     )
 
 
 def cmd_refresh(args: argparse.Namespace) -> None:
     """Handler for the 'refresh' command."""
-    _run_auth_command(
-        lambda: refresh(args.token),
-        args,
-        "Token refreshed",
+    config = AuthCommandConfig(
+        title="Token refreshed",
         token_key="id_token",
         show_usage=False,
     )
+    _run_auth_command(lambda: refresh(args.token), args, config)
 
 
 def _create_parser() -> argparse.ArgumentParser:

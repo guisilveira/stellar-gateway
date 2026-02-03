@@ -14,12 +14,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
 from auth import (
+    LOGIN_URL,
+    SIGNUP_URL,
     FirebaseAuthError,
+    _auth_with_credentials,
     _get_api_key,
     _handle_firebase_error,
-    login,
     refresh,
-    signup,
 )
 
 
@@ -116,7 +117,7 @@ class TestHandleFirebaseError:
 
 
 class TestSignup:
-    """Tests for the signup function."""
+    """Tests for signup functionality using _auth_with_credentials."""
 
     @patch("auth.httpx.post")
     @patch("auth.settings")
@@ -137,7 +138,7 @@ class TestSignup:
         }
         mock_post.return_value = mock_response
 
-        result = signup("test@example.com", "password123")
+        result = _auth_with_credentials(SIGNUP_URL, "test@example.com", "password123")
 
         assert result["idToken"] == "test-id-token"
         assert result["localId"] == "user-123"
@@ -157,13 +158,13 @@ class TestSignup:
         mock_post.return_value = mock_response
 
         with pytest.raises(FirebaseAuthError) as exc_info:
-            signup("existing@example.com", "password123")
+            _auth_with_credentials(SIGNUP_URL, "existing@example.com", "password123")
 
         assert "already registered" in str(exc_info.value)
 
 
 class TestLogin:
-    """Tests for the login function."""
+    """Tests for login functionality using _auth_with_credentials."""
 
     @patch("auth.httpx.post")
     @patch("auth.settings")
@@ -184,7 +185,7 @@ class TestLogin:
         }
         mock_post.return_value = mock_response
 
-        result = login("test@example.com", "password123")
+        result = _auth_with_credentials(LOGIN_URL, "test@example.com", "password123")
 
         assert result["idToken"] == "test-id-token"
         assert result["refreshToken"] == "test-refresh-token"
@@ -205,7 +206,7 @@ class TestLogin:
         mock_post.return_value = mock_response
 
         with pytest.raises(FirebaseAuthError) as exc_info:
-            login("test@example.com", "wrongpassword")
+            _auth_with_credentials(LOGIN_URL, "test@example.com", "wrongpassword")
 
         assert "Invalid email or password" in str(exc_info.value)
 
@@ -223,7 +224,7 @@ class TestLogin:
         mock_post.return_value = mock_response
 
         with pytest.raises(FirebaseAuthError) as exc_info:
-            login("nonexistent@example.com", "password123")
+            _auth_with_credentials(LOGIN_URL, "nonexistent@example.com", "password123")
 
         assert "No account found" in str(exc_info.value)
 
@@ -284,7 +285,7 @@ class TestApiKeyValidation:
         mock_settings.FIREBASE_WEB_API_KEY = ""
 
         with pytest.raises(ValueError) as exc_info:
-            signup("test@example.com", "password123")
+            _auth_with_credentials(SIGNUP_URL, "test@example.com", "password123")
 
         assert "FIREBASE_WEB_API_KEY" in str(exc_info.value)
 
@@ -294,7 +295,7 @@ class TestApiKeyValidation:
         mock_settings.FIREBASE_WEB_API_KEY = ""
 
         with pytest.raises(ValueError) as exc_info:
-            login("test@example.com", "password123")
+            _auth_with_credentials(LOGIN_URL, "test@example.com", "password123")
 
         assert "FIREBASE_WEB_API_KEY" in str(exc_info.value)
 
