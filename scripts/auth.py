@@ -22,6 +22,7 @@ Requirements:
 import argparse
 import sys
 from pathlib import Path
+from typing import Callable
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -100,6 +101,40 @@ def _handle_firebase_error(response: httpx.Response) -> None:
         ) from None
 
 
+def _firebase_request(url: str, payload: dict, use_json: bool = True) -> dict:
+    """
+    Makes a request to Firebase API with common error handling.
+
+    Args:
+        url: The Firebase API endpoint URL.
+        payload: The request payload.
+        use_json: If True, send as JSON; if False, send as form data.
+
+    Returns:
+        The JSON response from Firebase.
+
+    Raises:
+        FirebaseAuthError: If the request fails.
+    """
+    api_key = _get_api_key()
+
+    request_kwargs: dict = {
+        "params": {"key": api_key},
+        "timeout": 30.0,
+    }
+    if use_json:
+        request_kwargs["json"] = payload
+    else:
+        request_kwargs["data"] = payload
+
+    response = httpx.post(url, **request_kwargs)
+
+    if response.status_code != 200:
+        _handle_firebase_error(response)
+
+    return response.json()
+
+
 def signup(email: str, password: str) -> dict:
     """
     Creates a new user account with email and password.
@@ -114,25 +149,11 @@ def signup(email: str, password: str) -> dict:
     Raises:
         FirebaseAuthError: If signup fails.
     """
-    api_key = _get_api_key()
-
-    payload = {
+    return _firebase_request(SIGNUP_URL, {
         "email": email,
         "password": password,
         "returnSecureToken": True,
-    }
-
-    response = httpx.post(
-        SIGNUP_URL,
-        json=payload,
-        params={"key": api_key},
-        timeout=30.0,
-    )
-
-    if response.status_code != 200:
-        _handle_firebase_error(response)
-
-    return response.json()
+    })
 
 
 def login(email: str, password: str) -> dict:
@@ -149,25 +170,11 @@ def login(email: str, password: str) -> dict:
     Raises:
         FirebaseAuthError: If login fails.
     """
-    api_key = _get_api_key()
-
-    payload = {
+    return _firebase_request(LOGIN_URL, {
         "email": email,
         "password": password,
         "returnSecureToken": True,
-    }
-
-    response = httpx.post(
-        LOGIN_URL,
-        json=payload,
-        params={"key": api_key},
-        timeout=30.0,
-    )
-
-    if response.status_code != 200:
-        _handle_firebase_error(response)
-
-    return response.json()
+    })
 
 
 def refresh(refresh_token: str) -> dict:
@@ -183,114 +190,123 @@ def refresh(refresh_token: str) -> dict:
     Raises:
         FirebaseAuthError: If refresh fails.
     """
-    api_key = _get_api_key()
-
-    payload = {
+    return _firebase_request(REFRESH_URL, {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
-    }
+    }, use_json=False)
 
-    response = httpx.post(
-        REFRESH_URL,
-        data=payload,  # Note: refresh endpoint uses form data, not JSON
-        params={"key": api_key},
-        timeout=30.0,
-    )
 
-    if response.status_code != 200:
-        _handle_firebase_error(response)
+def _print_auth_result(
+    result: dict,
+    title: str,
+    token_key: str = "idToken",
+    show_usage: bool = True,
+) -> None:
+    """
+    Prints formatted authentication result to stdout.
 
-    return response.json()
+    Args:
+        result: The authentication result dictionary.
+        title: The success message title.
+        token_key: The key for the ID token in the result.
+        show_usage: Whether to show the curl usage example.
+    """
+    print("\n" + "=" * 60)
+    print(f"SUCCESS! {title}")
+    print("=" * 60)
+
+    # User ID (different keys for different endpoints)
+    user_id = result.get("localId") or result.get("user_id")
+    print(f"\nUser ID (uid): {user_id}")
+
+    # Email (only present in signup/login responses)
+    if "email" in result:
+        print(f"Email: {result.get('email')}")
+
+    # Expiration (different keys for different endpoints)
+    expires_in = result.get("expiresIn") or result.get("expires_in")
+    print(f"Expires in: {expires_in} seconds")
+
+    # Tokens
+    print(f"\nID Token:\n{result.get(token_key)}")
+
+    refresh_key = "refreshToken" if "refreshToken" in result else "refresh_token"
+    print(f"\nRefresh Token:\n{result.get(refresh_key)}")
+
+    print("\n" + "=" * 60)
+
+    # Usage example
+    if show_usage:
+        print("\nUsage example:")
+        token_preview = result.get(token_key, "")[:50]
+        print(f'  curl -H "Authorization: Bearer {token_preview}..." <API_URL>')
+
+
+def _run_auth_command(
+    auth_func: Callable[[], dict],
+    args: argparse.Namespace,
+    title: str,
+    token_key: str = "idToken",
+    show_usage: bool = True,
+) -> None:
+    """
+    Generic handler for authentication commands with error handling.
+
+    Args:
+        auth_func: The authentication function to call.
+        args: Parsed command line arguments.
+        title: The success message title.
+        token_key: The key for the ID token in the result.
+        show_usage: Whether to show the curl usage example.
+    """
+    try:
+        result = auth_func()
+
+        if args.quiet:
+            print(result[token_key])
+            return
+
+        _print_auth_result(result, title, token_key, show_usage)
+
+    except (ValueError, FirebaseAuthError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+    except httpx.RequestError as e:
+        print(f"ERROR: Network request failed: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_signup(args: argparse.Namespace) -> None:
     """Handler for the 'signup' command."""
-    try:
-        result = signup(args.email, args.password)
-
-        if args.quiet:
-            print(result["idToken"])
-            return
-
-        print("\n" + "=" * 60)
-        print("SUCCESS! User created")
-        print("=" * 60)
-        print(f"\nUser ID (uid): {result.get('localId')}")
-        print(f"Email: {result.get('email')}")
-        print(f"Expires in: {result.get('expiresIn')} seconds")
-        print(f"\nID Token:\n{result.get('idToken')}")
-        print(f"\nRefresh Token:\n{result.get('refreshToken')}")
-        print("\n" + "=" * 60)
-        print("\nUsage example:")
-        token_preview = result.get("idToken", "")[:50]
-        print(f'  curl -H "Authorization: Bearer {token_preview}..." <API_URL>')
-
-    except (ValueError, FirebaseAuthError) as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    except httpx.RequestError as e:
-        print(f"ERROR: Network request failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    _run_auth_command(
+        lambda: signup(args.email, args.password),
+        args,
+        "User created",
+    )
 
 
 def cmd_login(args: argparse.Namespace) -> None:
     """Handler for the 'login' command."""
-    try:
-        result = login(args.email, args.password)
-
-        if args.quiet:
-            print(result["idToken"])
-            return
-
-        print("\n" + "=" * 60)
-        print("SUCCESS! Logged in")
-        print("=" * 60)
-        print(f"\nUser ID (uid): {result.get('localId')}")
-        print(f"Email: {result.get('email')}")
-        print(f"Expires in: {result.get('expiresIn')} seconds")
-        print(f"\nID Token:\n{result.get('idToken')}")
-        print(f"\nRefresh Token:\n{result.get('refreshToken')}")
-        print("\n" + "=" * 60)
-        print("\nUsage example:")
-        token_preview = result.get("idToken", "")[:50]
-        print(f'  curl -H "Authorization: Bearer {token_preview}..." <API_URL>')
-
-    except (ValueError, FirebaseAuthError) as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    except httpx.RequestError as e:
-        print(f"ERROR: Network request failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    _run_auth_command(
+        lambda: login(args.email, args.password),
+        args,
+        "Logged in",
+    )
 
 
 def cmd_refresh(args: argparse.Namespace) -> None:
     """Handler for the 'refresh' command."""
-    try:
-        result = refresh(args.token)
-
-        if args.quiet:
-            print(result["id_token"])
-            return
-
-        print("\n" + "=" * 60)
-        print("SUCCESS! Token refreshed")
-        print("=" * 60)
-        print(f"\nUser ID (uid): {result.get('user_id')}")
-        print(f"Expires in: {result.get('expires_in')} seconds")
-        print(f"\nNew ID Token:\n{result.get('id_token')}")
-        print(f"\nNew Refresh Token:\n{result.get('refresh_token')}")
-        print("\n" + "=" * 60)
-
-    except (ValueError, FirebaseAuthError) as e:
-        print(f"ERROR: {e}", file=sys.stderr)
-        sys.exit(1)
-    except httpx.RequestError as e:
-        print(f"ERROR: Network request failed: {e}", file=sys.stderr)
-        sys.exit(1)
+    _run_auth_command(
+        lambda: refresh(args.token),
+        args,
+        "Token refreshed",
+        token_key="id_token",
+        show_usage=False,
+    )
 
 
-def main() -> None:
-    """Main entry point for the CLI."""
+def _create_parser() -> argparse.ArgumentParser:
+    """Creates and configures the argument parser."""
     parser = argparse.ArgumentParser(
         description="Firebase Authentication CLI for Stellar Gateway",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -315,46 +331,14 @@ Examples:
 
     # Signup command
     signup_parser = subparsers.add_parser("signup", help="Create a new user account")
-    signup_parser.add_argument(
-        "-e",
-        "--email",
-        required=True,
-        help="User's email address",
-    )
-    signup_parser.add_argument(
-        "-p",
-        "--password",
-        required=True,
-        help="User's password (min 6 characters)",
-    )
-    signup_parser.add_argument(
-        "-q",
-        "--quiet",
-        action="store_true",
-        help="Only output the ID token (useful for scripting)",
-    )
+    _add_email_password_args(signup_parser)
+    _add_quiet_arg(signup_parser)
     signup_parser.set_defaults(func=cmd_signup)
 
     # Login command
     login_parser = subparsers.add_parser("login", help="Login with email and password")
-    login_parser.add_argument(
-        "-e",
-        "--email",
-        required=True,
-        help="User's email address",
-    )
-    login_parser.add_argument(
-        "-p",
-        "--password",
-        required=True,
-        help="User's password",
-    )
-    login_parser.add_argument(
-        "-q",
-        "--quiet",
-        action="store_true",
-        help="Only output the ID token (useful for scripting)",
-    )
+    _add_email_password_args(login_parser)
+    _add_quiet_arg(login_parser)
     login_parser.set_defaults(func=cmd_login)
 
     # Refresh command
@@ -365,14 +349,41 @@ Examples:
         required=True,
         help="The refresh token from a previous login",
     )
-    refresh_parser.add_argument(
+    _add_quiet_arg(refresh_parser)
+    refresh_parser.set_defaults(func=cmd_refresh)
+
+    return parser
+
+
+def _add_email_password_args(parser: argparse.ArgumentParser) -> None:
+    """Adds email and password arguments to a parser."""
+    parser.add_argument(
+        "-e",
+        "--email",
+        required=True,
+        help="User's email address",
+    )
+    parser.add_argument(
+        "-p",
+        "--password",
+        required=True,
+        help="User's password (min 6 characters)",
+    )
+
+
+def _add_quiet_arg(parser: argparse.ArgumentParser) -> None:
+    """Adds the quiet flag argument to a parser."""
+    parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
-        help="Only output the new ID token (useful for scripting)",
+        help="Only output the ID token (useful for scripting)",
     )
-    refresh_parser.set_defaults(func=cmd_refresh)
 
+
+def main() -> None:
+    """Main entry point for the CLI."""
+    parser = _create_parser()
     args = parser.parse_args()
 
     if args.command is None:
