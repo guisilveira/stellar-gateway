@@ -1,0 +1,443 @@
+# =============================================================================
+# OpenAPI Template for GCP API Gateway
+# =============================================================================
+# This is a TEMPLATE file. Generate the actual openapi.yaml using envsubst:
+#
+#   export GCP_PROJECT_ID="your-project-id"
+#   export CLOUD_RUN_URL="https://your-service-xxxxx.us-central1.run.app"
+#   envsubst < openapi.template.yaml > openapi.yaml
+#
+# Required environment variables:
+#   - GCP_PROJECT_ID: Your Google Cloud Project ID
+#   - CLOUD_RUN_URL: The Cloud Run service URL (full URL with https://)
+# =============================================================================
+
+swagger: "2.0"
+info:
+  title: Stellar Gateway API
+  description: |
+    A serverless proxy for the Star Wars API (SWAPI) with authentication,
+    caching, and data enrichment.
+  version: "1.0.0"
+
+host: stellar-gateway-api.endpoints.${GCP_PROJECT_ID}.cloud.goog
+basePath: /
+
+schemes:
+  - https
+
+produces:
+  - application/json
+
+# Security definitions
+securityDefinitions:
+  firebase:
+    authorizationUrl: ""
+    flow: implicit
+    type: oauth2
+    x-google-issuer: "https://securetoken.google.com/${GCP_PROJECT_ID}"
+    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+    x-google-audiences: "${GCP_PROJECT_ID}"
+
+# Default backend for all routes
+x-google-backend:
+  address: ${CLOUD_RUN_URL}
+  deadline: 60.0
+
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Health check endpoint
+      description: Returns the health status of the API. No authentication required.
+      responses:
+        200:
+          description: API is healthy
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: healthy
+
+  /me:
+    get:
+      operationId: getCurrentUser
+      summary: Get current user info
+      description: Returns the authenticated user's information from the Firebase token.
+      security:
+        - firebase: []
+      responses:
+        200:
+          description: User information
+          schema:
+            type: object
+            properties:
+              uid:
+                type: string
+                description: Firebase user ID
+              email:
+                type: string
+                description: User's email address
+              name:
+                type: string
+                description: User's display name
+              email_verified:
+                type: boolean
+                description: Whether the email has been verified
+        401:
+          description: Missing or invalid authentication
+
+  /people:
+    get:
+      operationId: listPeople
+      summary: List all people
+      description: Returns a paginated list of Star Wars characters.
+      security:
+        - firebase: []
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          minimum: 1
+          description: Page number for pagination
+        - name: search
+          in: query
+          type: string
+          description: Search query to filter results
+        - name: sort_by
+          in: query
+          type: string
+          description: Field to sort by (e.g., name, height, mass)
+        - name: sort_order
+          in: query
+          type: string
+          enum: [asc, desc]
+          default: asc
+          description: Sort order (ascending or descending)
+      responses:
+        200:
+          description: Paginated list of people
+        401:
+          description: Missing or invalid authentication
+
+  /people/{id}:
+    get:
+      operationId: getPerson
+      summary: Get a specific person
+      description: Returns details of a specific Star Wars character.
+      security:
+        - firebase: []
+      parameters:
+        - name: id
+          in: path
+          type: integer
+          required: true
+          description: The person's unique identifier
+        - name: enrich
+          in: query
+          type: boolean
+          default: true
+          description: Whether to enrich URLs with resource names
+      responses:
+        200:
+          description: Person details
+        401:
+          description: Missing or invalid authentication
+        404:
+          description: Person not found
+
+  /planets:
+    get:
+      operationId: listPlanets
+      summary: List all planets
+      description: Returns a paginated list of Star Wars planets.
+      security:
+        - firebase: []
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          minimum: 1
+          description: Page number for pagination
+        - name: search
+          in: query
+          type: string
+          description: Search query to filter results
+        - name: sort_by
+          in: query
+          type: string
+          description: Field to sort by (e.g., name, population)
+        - name: sort_order
+          in: query
+          type: string
+          enum: [asc, desc]
+          default: asc
+          description: Sort order
+      responses:
+        200:
+          description: Paginated list of planets
+        401:
+          description: Missing or invalid authentication
+
+  /planets/{id}:
+    get:
+      operationId: getPlanet
+      summary: Get a specific planet
+      description: Returns details of a specific Star Wars planet.
+      security:
+        - firebase: []
+      parameters:
+        - name: id
+          in: path
+          type: integer
+          required: true
+          description: The planet's unique identifier
+        - name: enrich
+          in: query
+          type: boolean
+          default: true
+          description: Whether to enrich URLs with resource names
+      responses:
+        200:
+          description: Planet details
+        401:
+          description: Missing or invalid authentication
+        404:
+          description: Planet not found
+
+  /films:
+    get:
+      operationId: listFilms
+      summary: List all films
+      description: Returns a paginated list of Star Wars films.
+      security:
+        - firebase: []
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          minimum: 1
+          description: Page number for pagination
+        - name: search
+          in: query
+          type: string
+          description: Search query to filter results
+        - name: sort_by
+          in: query
+          type: string
+          description: Field to sort by (e.g., title, release_date)
+        - name: sort_order
+          in: query
+          type: string
+          enum: [asc, desc]
+          default: asc
+          description: Sort order
+      responses:
+        200:
+          description: Paginated list of films
+        401:
+          description: Missing or invalid authentication
+
+  /films/{id}:
+    get:
+      operationId: getFilm
+      summary: Get a specific film
+      description: Returns details of a specific Star Wars film.
+      security:
+        - firebase: []
+      parameters:
+        - name: id
+          in: path
+          type: integer
+          required: true
+          description: The film's unique identifier
+        - name: enrich
+          in: query
+          type: boolean
+          default: true
+          description: Whether to enrich URLs with resource names
+      responses:
+        200:
+          description: Film details
+        401:
+          description: Missing or invalid authentication
+        404:
+          description: Film not found
+
+  /species:
+    get:
+      operationId: listSpecies
+      summary: List all species
+      description: Returns a paginated list of Star Wars species.
+      security:
+        - firebase: []
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          minimum: 1
+          description: Page number for pagination
+        - name: search
+          in: query
+          type: string
+          description: Search query to filter results
+        - name: sort_by
+          in: query
+          type: string
+          description: Field to sort by (e.g., name, classification)
+        - name: sort_order
+          in: query
+          type: string
+          enum: [asc, desc]
+          default: asc
+          description: Sort order
+      responses:
+        200:
+          description: Paginated list of species
+        401:
+          description: Missing or invalid authentication
+
+  /species/{id}:
+    get:
+      operationId: getSpecies
+      summary: Get a specific species
+      description: Returns details of a specific Star Wars species.
+      security:
+        - firebase: []
+      parameters:
+        - name: id
+          in: path
+          type: integer
+          required: true
+          description: The species' unique identifier
+        - name: enrich
+          in: query
+          type: boolean
+          default: true
+          description: Whether to enrich URLs with resource names
+      responses:
+        200:
+          description: Species details
+        401:
+          description: Missing or invalid authentication
+        404:
+          description: Species not found
+
+  /vehicles:
+    get:
+      operationId: listVehicles
+      summary: List all vehicles
+      description: Returns a paginated list of Star Wars vehicles.
+      security:
+        - firebase: []
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          minimum: 1
+          description: Page number for pagination
+        - name: search
+          in: query
+          type: string
+          description: Search query to filter results
+        - name: sort_by
+          in: query
+          type: string
+          description: Field to sort by (e.g., name, model)
+        - name: sort_order
+          in: query
+          type: string
+          enum: [asc, desc]
+          default: asc
+          description: Sort order
+      responses:
+        200:
+          description: Paginated list of vehicles
+        401:
+          description: Missing or invalid authentication
+
+  /vehicles/{id}:
+    get:
+      operationId: getVehicle
+      summary: Get a specific vehicle
+      description: Returns details of a specific Star Wars vehicle.
+      security:
+        - firebase: []
+      parameters:
+        - name: id
+          in: path
+          type: integer
+          required: true
+          description: The vehicle's unique identifier
+        - name: enrich
+          in: query
+          type: boolean
+          default: true
+          description: Whether to enrich URLs with resource names
+      responses:
+        200:
+          description: Vehicle details
+        401:
+          description: Missing or invalid authentication
+        404:
+          description: Vehicle not found
+
+  /starships:
+    get:
+      operationId: listStarships
+      summary: List all starships
+      description: Returns a paginated list of Star Wars starships.
+      security:
+        - firebase: []
+      parameters:
+        - name: page
+          in: query
+          type: integer
+          minimum: 1
+          description: Page number for pagination
+        - name: search
+          in: query
+          type: string
+          description: Search query to filter results
+        - name: sort_by
+          in: query
+          type: string
+          description: Field to sort by (e.g., name, model)
+        - name: sort_order
+          in: query
+          type: string
+          enum: [asc, desc]
+          default: asc
+          description: Sort order
+      responses:
+        200:
+          description: Paginated list of starships
+        401:
+          description: Missing or invalid authentication
+
+  /starships/{id}:
+    get:
+      operationId: getStarship
+      summary: Get a specific starship
+      description: Returns details of a specific Star Wars starship.
+      security:
+        - firebase: []
+      parameters:
+        - name: id
+          in: path
+          type: integer
+          required: true
+          description: The starship's unique identifier
+        - name: enrich
+          in: query
+          type: boolean
+          default: true
+          description: Whether to enrich URLs with resource names
+      responses:
+        200:
+          description: Starship details
+        401:
+          description: Missing or invalid authentication
+        404:
+          description: Starship not found
