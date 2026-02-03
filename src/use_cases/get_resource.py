@@ -151,21 +151,17 @@ class GetResourceUseCase:
         """
         return f"swapi:{resource_type}:{resource_id}"
 
-    def _parse_swapi_url(self, url: Any) -> tuple[str, int] | None:
+    def _parse_swapi_url(self, url: str) -> tuple[str, int] | None:
         """
         Extracts resource type and ID from a SWAPI URL.
 
-        Handles both string URLs and Pydantic HttpUrl objects.
-
         Args:
-            url: The SWAPI URL to parse (str or HttpUrl).
+            url: The SWAPI URL string to parse.
 
         Returns:
             A tuple of (resource_type, resource_id) or None if invalid.
         """
-        # Convert HttpUrl to string if needed
-        url_str = str(url) if url else ""
-        match = SWAPI_URL_PATTERN.match(url_str)
+        match = SWAPI_URL_PATTERN.match(url)
         if match:
             return match.group(1), int(match.group(2))
         return None
