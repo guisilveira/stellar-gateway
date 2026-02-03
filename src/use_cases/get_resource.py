@@ -78,7 +78,7 @@ class GetResourceUseCase:
         swapi: SwapiInterface,
         cache: CacheInterface,
         cache_ttl_seconds: int = DEFAULT_CACHE_TTL_SECONDS,
-        validate: bool = False,
+        validate: bool = True,
     ) -> None:
         """
         Initializes the GetResourceUseCase.
@@ -88,8 +88,8 @@ class GetResourceUseCase:
             cache: The cache client implementing CacheInterface.
             cache_ttl_seconds: Time-to-live for cached entries (default: 300s).
             validate: Whether to validate data against Pydantic models
-                     (default: False). Set to True to enable type validation
-                     and IDE autocomplete benefits.
+                     (default: True). Set to False to disable validation
+                     for better performance.
         """
         self._swapi = swapi
         self._cache = cache
@@ -134,9 +134,9 @@ class GetResourceUseCase:
             # Unknown resource type, return as-is
             return data
 
-        # Validate with Pydantic and convert back to dict
+        # Validate with Pydantic and convert back to dict with JSON-serializable values
         validated = model_class(**data)
-        return validated.model_dump()
+        return validated.model_dump(mode="json")
 
     def _generate_cache_key(self, resource_type: str, resource_id: int) -> str:
         """
@@ -151,17 +151,21 @@ class GetResourceUseCase:
         """
         return f"swapi:{resource_type}:{resource_id}"
 
-    def _parse_swapi_url(self, url: str) -> tuple[str, int] | None:
+    def _parse_swapi_url(self, url: Any) -> tuple[str, int] | None:
         """
         Extracts resource type and ID from a SWAPI URL.
 
+        Handles both string URLs and Pydantic HttpUrl objects.
+
         Args:
-            url: The SWAPI URL to parse.
+            url: The SWAPI URL to parse (str or HttpUrl).
 
         Returns:
             A tuple of (resource_type, resource_id) or None if invalid.
         """
-        match = SWAPI_URL_PATTERN.match(url)
+        # Convert HttpUrl to string if needed
+        url_str = str(url) if url else ""
+        match = SWAPI_URL_PATTERN.match(url_str)
         if match:
             return match.group(1), int(match.group(2))
         return None
