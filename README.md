@@ -115,9 +115,23 @@ poetry run uvicorn src.main:app --reload
 # Run all tests
 poetry run pytest
 
-# Run with coverage
-poetry run pytest --cov=src --cov-report=html
+# Run with coverage report
+poetry run pytest --cov-report=html
+
+# Run only unit tests
+poetry run pytest tests/unit/
+
+# Run only integration tests
+poetry run pytest tests/integration/
+
+# Linting and type checking
+make lint
+make type-check
 ```
+
+> **Note:** Tests use mocks and fakeredis, so no external services are required.
+>
+> For detailed testing documentation, see [TESTING.md](TESTING.md)
 
 ## 🚀 Deployment
 
